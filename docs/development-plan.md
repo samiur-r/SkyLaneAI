@@ -2,9 +2,10 @@
 
 ## Overview
 
-This document outlines the development plan for SkyLaneAI v2, broken down into two phases:
-- **Phase 1**: Project setup with Next.js frontend and FastAPI backend
-- **Phase 2**: Video upload and detection functionality
+This document outlines the development plan for SkyLaneAI v2, broken down into phases:
+- **Phase 1**: Project setup with Next.js frontend and FastAPI backend (Foundation)
+- **Phase 2**: Live video streaming with WebRTC and real-time detection
+- **Phase 3**: Advanced features (database, analytics, custom training)
 
 ---
 
