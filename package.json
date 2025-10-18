@@ -1,0 +1,20 @@
+{
+  "name": "skylane-ai-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SkyLaneAI - Sky Hazard Detection for Flying Taxis",
+  "scripts": {
+    "dev": "pnpm --parallel --filter web --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "cd apps/api && source venv/bin/activate && uvicorn app.main:app --reload",
+    "build": "pnpm --recursive build",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check",
+    "clean": "pnpm --recursive clean && rm -rf node_modules"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
