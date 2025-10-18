@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import router
+from app.api.stream_routes import router as stream_router
 
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(router, prefix="/api/v1", tags=["api"])
+app.include_router(stream_router, prefix="/api/v1/stream", tags=["stream"])
 
 
 @app.get("/")

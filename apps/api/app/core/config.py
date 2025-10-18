@@ -18,9 +18,16 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: set[str] = {".jpg", ".jpeg", ".png", ".mp4", ".avi"}
 
     # Model Settings
-    MODEL_PATH: str = "yolo11n.pt"  # Will be downloaded automatically
+    MODELS_DIR: str = "models"  # Directory to store model files
+    MODEL_NAME: str = "yolo11n.pt"  # Model filename
+    MODEL_CACHE_ENABLED: bool = True  # Cache models to avoid re-downloading
     CONFIDENCE_THRESHOLD: float = 0.25
     IOU_THRESHOLD: float = 0.45
+
+    # Video Streaming Settings
+    DEFAULT_PROCESS_FPS: int = 10  # Process 10 frames per second
+    MAX_FRAME_QUEUE_SIZE: int = 30  # Maximum frames in processing queue
+    ENABLE_FRAME_SKIPPING: bool = True  # Skip frames if processing is slow
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -47,6 +47,8 @@ ENV/
 # FastAPI
 apps/api/storage/
 apps/api/.env
+apps/api/models/  # YOLO model cache directory
+apps/api/.venv/  # Python virtual environment (uv)
 
 # IDE
 .vscode/

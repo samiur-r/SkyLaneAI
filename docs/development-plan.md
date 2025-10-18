@@ -242,61 +242,110 @@ Phase 2 focuses on implementing WebRTC-based live video streaming with real-time
 
 ---
 
-### 2.1 Backend: WebRTC Video Streaming
+### 2.1 Backend: WebRTC Video Streaming ✅
 
 **Goal**: Set up WebRTC signaling and video stream handling
 
+**Status**: ✅ Completed
+
 **Tasks**:
-- [ ] Install `aiortc` for WebRTC support in Python
-- [ ] Create WebSocket endpoint for WebRTC signaling
-- [ ] Implement video track receiver
-- [ ] Set up peer connection handling
-- [ ] Add frame buffering for processing
+- ✅ Install `aiortc` for WebRTC support in Python
+- ✅ Create WebSocket endpoint for WebRTC signaling
+- ✅ Implement video track receiver
+- ✅ Set up peer connection handling
+- ✅ Add frame buffering for processing
 
-**Files to Create**:
+**Files Created**:
 ```
-apps/api/app/services/video_stream.py
-apps/api/app/api/stream_routes.py
-apps/api/app/services/webrtc_handler.py
+✅ apps/api/app/services/video_stream.py
+✅ apps/api/app/api/stream_routes.py
+✅ apps/api/app/services/webrtc_handler.py
+✅ apps/api/app/core/config.py (updated with streaming settings)
+✅ apps/api/app/main.py (registered stream routes)
+✅ apps/api/requirements.txt (added WebRTC dependencies)
 ```
 
-**Dependencies to Add**:
+**Dependencies Added**:
 ```
-aiortc==1.6.0
-aiohttp==3.9.0
-websockets==12.0
+✅ aiortc==1.13.0 (latest version)
+✅ aiohttp==3.13.1 (latest version)
+✅ websockets==15.0.1 (latest version)
 ```
 
 **Key Implementation**:
-- WebSocket endpoint: `ws://localhost:8000/api/v1/stream/ws`
-- Handle WebRTC offer/answer exchange
-- Receive video frames from browser
-- Buffer frames for detection processing
+- ✅ WebSocket endpoint: `ws://localhost:8000/api/v1/stream/ws`
+- ✅ Handle WebRTC offer/answer exchange
+- ✅ Receive video frames from browser
+- ✅ Buffer frames for detection processing
+- ✅ Frame processing at configurable FPS (default: 10 FPS)
+- ✅ Frame skipping when processing is slow
+- ✅ Detection results sent back via WebSocket
+
+**Features Implemented**:
+- `WebRTCConnectionHandler`: Manages WebRTC peer connections and video tracks
+- `VideoStreamProcessor`: Processes frames with YOLO detection at configurable FPS
+- `VideoTransformTrack`: Receives frames and passes them to processor
+- WebSocket message types: offer, ice_candidate, settings, get_stats, ping
+- Active connections endpoint: `GET /api/v1/stream/connections`
 
 ---
 
-### 2.2 Backend: Real-time Detection Pipeline
+### 2.2 Backend: Real-time Detection Pipeline ✅
 
 **Goal**: Process video frames with YOLOv11 in real-time
 
+**Status**: ✅ Completed (implemented in video_stream.py)
+
 **Tasks**:
-- [ ] Integrate YOLOv11 detector service with video stream
-- [ ] Implement frame queue for efficient processing
-- [ ] Add frame skipping (process every Nth frame)
-- [ ] Optimize detection for low latency
-- [ ] Send detection results back to frontend via WebSocket
+- ✅ Integrate YOLOv11 detector service with video stream
+- ✅ Implement frame queue for efficient processing
+- ✅ Add frame skipping (process every Nth frame)
+- ✅ Optimize detection for low latency
+- ✅ Send detection results back to frontend via WebSocket
 
-**Files to Modify/Create**:
+**Files Modified/Created**:
 ```
-apps/api/app/services/detector.py (already exists)
-apps/api/app/services/stream_processor.py (new)
+✅ apps/api/app/services/detector.py (already exists, no changes needed)
+✅ apps/api/app/services/video_stream.py (VideoStreamProcessor class)
 ```
 
-**Key Features**:
-- Process frames at configurable FPS (e.g., 10 FPS)
-- Skip frames if processing is too slow
-- Send detections with bounding boxes to frontend
-- Filter detections by confidence threshold
+**Key Features Implemented**:
+- ✅ Process frames at configurable FPS (default: 10 FPS, adjustable)
+- ✅ Skip frames if processing is too slow (configurable)
+- ✅ Send detections with bounding boxes to frontend via WebSocket
+- ✅ Filter detections by confidence threshold (from config)
+- ✅ Async frame processing using asyncio.to_thread()
+- ✅ Frame queue with deque (max size: 30 frames)
+- ✅ Processing statistics tracking (frames received, processed, skipped)
+- ✅ Average processing time calculation with smoothing
+- ✅ Real-time settings updates (FPS, frame skipping)
+
+**Detection Result Format**:
+```json
+{
+  "type": "detection",
+  "data": {
+    "frame_number": 123,
+    "timestamp": 1234567890.123,
+    "detections": [
+      {
+        "class_name": "bird",
+        "class_id": 14,
+        "confidence": 0.87,
+        "bbox": {"x1": 100, "y1": 200, "x2": 300, "y2": 400}
+      }
+    ],
+    "processing_time_ms": 45.2,
+    "stats": {
+      "frames_received": 500,
+      "frames_processed": 200,
+      "frames_skipped": 300,
+      "avg_processing_time": 42.5,
+      "detections_count": 15
+    }
+  }
+}
+```
 
 ---
 
