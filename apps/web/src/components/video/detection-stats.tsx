@@ -8,7 +8,7 @@
 import { Activity, Target, Zap, Timer } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { StreamStats } from '@skylane/types';
+import type { StreamStats } from '@repo/types';
 
 export interface DetectionStatsProps {
   stats: StreamStats | null;

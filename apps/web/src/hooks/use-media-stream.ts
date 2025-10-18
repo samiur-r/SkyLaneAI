@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { CameraDevice } from '@skylane/types';
+import type { CameraDevice } from '@repo/types';
 
 export interface UseMediaStreamOptions {
   video?: boolean | MediaTrackConstraints;

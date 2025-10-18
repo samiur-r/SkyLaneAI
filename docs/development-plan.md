@@ -349,107 +349,118 @@ Phase 2 focuses on implementing WebRTC-based live video streaming with real-time
 
 ---
 
-### 2.3 Frontend: WebRTC Video Capture
+### 2.3 Frontend: WebRTC Video Capture ✅
 
 **Goal**: Capture video from user's camera and stream to backend
 
-**Tasks**:
-- [ ] Create `VideoCapture` component
-- [ ] Request camera permissions
-- [ ] Set up WebRTC peer connection
-- [ ] Send video stream to backend
-- [ ] Handle connection states (connecting, connected, error)
+**Status**: ✅ Completed
 
-**Files to Create**:
+**Tasks**:
+- ✅ Create `VideoCapture` component
+- ✅ Request camera permissions
+- ✅ Set up WebRTC peer connection
+- ✅ Send video stream to backend
+- ✅ Handle connection states (connecting, connected, error)
+
+**Files Created**:
 ```
-apps/web/src/components/video/video-capture.tsx
-apps/web/src/lib/webrtc-client.ts
-apps/web/src/hooks/use-media-stream.ts
+✅ apps/web/src/components/video/video-capture.tsx
+✅ apps/web/src/lib/webrtc-client.ts
+✅ apps/web/src/hooks/use-media-stream.ts
+✅ apps/web/src/hooks/use-webrtc.ts
 ```
 
 **Key Implementation**:
-```typescript
-// WebRTC setup
-const peerConnection = new RTCPeerConnection()
-const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-peerConnection.addTrack(stream.getVideoTracks()[0])
-```
+- WebRTC client with signaling, ICE handling, and reconnection logic
+- Media stream hook with device enumeration and selection
+- Camera permission handling with detailed error messages
+- Connection status tracking (disconnected, connecting, connected, reconnecting, error)
 
 ---
 
-### 2.4 Frontend: Real-time Detection Overlay
+### 2.4 Frontend: Real-time Detection Overlay ✅
 
 **Goal**: Display live video with detection bounding boxes
 
+**Status**: ✅ Completed
+
 **Tasks**:
-- [ ] Create `DetectionOverlay` component
-- [ ] Receive detection results via WebSocket
-- [ ] Draw bounding boxes on canvas overlay
-- [ ] Display labels and confidence scores
-- [ ] Color-code by hazard type
-- [ ] Add detection counter
+- ✅ Create `DetectionOverlay` component
+- ✅ Receive detection results via WebSocket
+- ✅ Draw bounding boxes on canvas overlay
+- ✅ Display labels and confidence scores
+- ✅ Color-code by hazard type
+- ✅ Add detection counter
 
-**Files to Create**:
+**Files Created**:
 ```
-apps/web/src/components/video/detection-overlay.tsx
-apps/web/src/components/video/detection-stats.tsx
+✅ apps/web/src/components/video/detection-overlay.tsx
+✅ apps/web/src/components/video/detection-stats.tsx
+✅ apps/web/src/hooks/use-detections.ts
 ```
 
-**Key Features**:
-- Canvas overlay synchronized with video
-- Real-time bounding box updates
-- Smooth animations
-- Confidence threshold filter
+**Key Features Implemented**:
+- Canvas overlay synchronized with video using requestAnimationFrame
+- Real-time bounding box updates with color-coded classes
+- Smooth animations with proper cleanup
+- Confidence threshold filtering
+- Detection statistics (FPS, latency, counts)
 
 ---
 
-### 2.5 Frontend: Control Panel
+### 2.5 Frontend: Control Panel ✅
 
 **Goal**: Add controls for video stream and detection settings
 
+**Status**: ✅ Completed
+
 **Tasks**:
-- [ ] Create start/stop stream buttons
-- [ ] Add camera selection dropdown
-- [ ] Add confidence threshold slider
-- [ ] Add FPS selector
-- [ ] Show connection status
-- [ ] Display detection statistics
+- ✅ Create start/stop stream buttons
+- ✅ Add camera selection dropdown
+- ✅ Add confidence threshold slider
+- ✅ Add FPS selector
+- ✅ Show connection status
+- ✅ Display detection statistics
 
-**Files to Create**:
+**Files Created**:
 ```
-apps/web/src/components/controls/stream-controls.tsx
-apps/web/src/components/controls/detection-settings.tsx
+✅ apps/web/src/components/controls/stream-controls.tsx
+✅ apps/web/src/components/controls/detection-settings.tsx
+✅ apps/web/src/app/stream/page.tsx
 ```
 
-**Controls to Implement**:
-- Start/Stop Streaming
+**Controls Implemented**:
+- Start/Stop Streaming with loading states
 - Select Camera (front/back/external)
-- Confidence Threshold (0.1 - 1.0)
-- Processing FPS (5, 10, 15, 30)
-- Enable/Disable Detection
+- Confidence Threshold slider (0.1 - 1.0)
+- Processing FPS selector (5, 10, 15, 20, 30)
+- Frame skipping toggle
+- Connection status badge
 
 ---
 
-### 2.6 Integration & Testing
+### 2.6 Integration & Testing 🚧
 
 **Goal**: Ensure end-to-end functionality
 
+**Status**: 🚧 Ready for Testing
+
 **Tasks**:
-- [ ] Test camera access on different browsers
-- [ ] Test WebRTC connection establishment
-- [ ] Verify detection results accuracy
-- [ ] Test latency and performance
-- [ ] Handle edge cases (no camera, connection lost, etc.)
-- [ ] Add error handling and user feedback
+- ⬜ Test camera access on different browsers
+- ⬜ Test WebRTC connection establishment
+- ⬜ Verify detection results accuracy
+- ⬜ Test latency and performance
+- ⬜ Handle edge cases (no camera, connection lost, etc.)
+- ✅ Add error handling and user feedback
 
 **Testing Checklist**:
-- [ ] Chrome on desktop
-- [ ] Firefox on desktop
-- [ ] Safari on macOS
-- [ ] Mobile browsers (Chrome/Safari)
-- [ ] Test with different camera resolutions
-- [ ] Test detection on bird videos
-- [ ] Measure end-to-end latency
+- ⬜ Chrome on desktop
+- ⬜ Firefox on desktop
+- ⬜ Safari on macOS
+- ⬜ Mobile browsers (Chrome/Safari)
+- ⬜ Test with different camera resolutions
+- ⬜ Test detection on bird videos
+- ⬜ Measure end-to-end latency
 
 ---
 

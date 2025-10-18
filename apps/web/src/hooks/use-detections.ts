@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import type { WSDetectionMessage, NormalizedDetection } from '@skylane/types';
+import type { WSDetectionMessage, NormalizedDetection } from '@repo/types';
 
 export interface UseDetectionsOptions {
   confidenceThreshold?: number;
@@ -16,6 +16,13 @@ export interface UseDetectionsReturn {
   latestFrame: number | null;
   latestTimestamp: number | null;
   processingTimeMs: number;
+  stats: {
+    framesReceived: number;
+    framesProcessed: number;
+    framesSkipped: number;
+    avgProcessingTime: number;
+    detectionsCount: number;
+  } | null;
   addDetectionResult: (message: WSDetectionMessage) => void;
   clearDetections: () => void;
   setConfidenceFilter: (threshold: number) => void;
@@ -46,6 +53,13 @@ export function useDetections(
   const [latestFrame, setLatestFrame] = useState<number | null>(null);
   const [latestTimestamp, setLatestTimestamp] = useState<number | null>(null);
   const [processingTimeMs, setProcessingTimeMs] = useState(0);
+  const [stats, setStats] = useState<{
+    framesReceived: number;
+    framesProcessed: number;
+    framesSkipped: number;
+    avgProcessingTime: number;
+    detectionsCount: number;
+  } | null>(null);
   const confidenceThreshold = useRef(options.confidenceThreshold || 0.25);
 
   /**
@@ -60,11 +74,22 @@ export function useDetections(
       setLatestTimestamp(data.timestamp);
       setProcessingTimeMs(data.processingTimeMs);
 
+      // Update stats if available
+      if (data.stats) {
+        setStats({
+          framesReceived: data.stats.frames_received,
+          framesProcessed: data.stats.frames_processed,
+          framesSkipped: data.stats.frames_skipped,
+          avgProcessingTime: data.stats.avg_processing_time,
+          detectionsCount: data.stats.detections_count,
+        });
+      }
+
       // Filter and normalize detections
       const normalizedDetections: NormalizedDetection[] = data.detections
-        .filter((detection) => detection.confidence >= confidenceThreshold.current)
+        .filter((detection: any) => detection.confidence >= confidenceThreshold.current)
         .slice(0, options.maxDetections || 100)
-        .map((detection, index) => ({
+        .map((detection: any, index: number) => ({
           id: `${data.frameNumber}-${index}`,
           className: detection.class_name,
           classId: detection.class_id,
@@ -95,6 +120,7 @@ export function useDetections(
     setLatestFrame(null);
     setLatestTimestamp(null);
     setProcessingTimeMs(0);
+    setStats(null);
   }, []);
 
   /**
@@ -110,6 +136,7 @@ export function useDetections(
     latestFrame,
     latestTimestamp,
     processingTimeMs,
+    stats,
     addDetectionResult,
     clearDetections,
     setConfidenceFilter,

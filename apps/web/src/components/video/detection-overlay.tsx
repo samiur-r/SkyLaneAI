@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { NormalizedDetection } from '@skylane/types';
+import type { NormalizedDetection } from '@repo/types';
 
 export interface DetectionOverlayProps {
   detections: NormalizedDetection[];

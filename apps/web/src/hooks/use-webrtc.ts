@@ -9,7 +9,7 @@ import type {
   WSDetectionMessage,
   StreamStats,
   StreamSettings,
-} from '@skylane/types';
+} from '@repo/types';
 
 export interface UseWebRTCOptions {
   wsUrl: string;

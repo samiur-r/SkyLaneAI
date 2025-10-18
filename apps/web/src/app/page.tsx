@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -6,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Video, Play } from "lucide-react";
 
 export default function Home() {
   return (
@@ -21,8 +23,14 @@ export default function Home() {
           state-of-the-art YOLOv11 technology
         </p>
         <div className="flex gap-4 justify-center">
-          <Button size="lg">Get Started</Button>
+          <Link href="/stream">
+            <Button size="lg">
+              <Play className="w-5 h-5 mr-2" />
+              Start Live Detection
+            </Button>
+          </Link>
           <Button size="lg" variant="outline">
+            <Video className="w-5 h-5 mr-2" />
             Learn More
           </Button>
         </div>

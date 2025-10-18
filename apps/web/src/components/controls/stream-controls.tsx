@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { ConnectionStatus, CameraDevice } from '@skylane/types';
+import type { ConnectionStatus, CameraDevice } from '@repo/types';
 
 export interface StreamControlsProps {
   isStreaming: boolean;
