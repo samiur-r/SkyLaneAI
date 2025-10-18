@@ -11,16 +11,20 @@ import type { NormalizedDetection } from '@repo/types';
 export interface DetectionOverlayProps {
   detections: NormalizedDetection[];
   videoRef: React.RefObject<HTMLVideoElement>;
+  frameWidth: number | null;
+  frameHeight: number | null;
   className?: string;
 }
 
 export function DetectionOverlay({
   detections,
   videoRef,
+  frameWidth,
+  frameHeight,
   className = '',
 }: DetectionOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,18 +58,29 @@ export function DetectionOverlay({
         updateCanvasSize();
       }
 
+      // Calculate scaling factors
+      // If frame dimensions aren't available yet, assume 1:1 scaling
+      const scaleX = frameWidth && frameHeight ? canvas.width / frameWidth : 1;
+      const scaleY = frameWidth && frameHeight ? canvas.height / frameHeight : 1;
+
       // Draw each detection
       detections.forEach((detection) => {
         const { bbox, className, confidence, color } = detection;
 
+        // Scale bounding box coordinates
+        const x1 = bbox.x1 * scaleX;
+        const y1 = bbox.y1 * scaleY;
+        const x2 = bbox.x2 * scaleX;
+        const y2 = bbox.y2 * scaleY;
+
         // Calculate box dimensions
-        const boxWidth = bbox.x2 - bbox.x1;
-        const boxHeight = bbox.y2 - bbox.y1;
+        const boxWidth = x2 - x1;
+        const boxHeight = y2 - y1;
 
         // Draw bounding box
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
-        ctx.strokeRect(bbox.x1, bbox.y1, boxWidth, boxHeight);
+        ctx.strokeRect(x1, y1, boxWidth, boxHeight);
 
         // Draw filled background for label
         const label = `${className} ${(confidence * 100).toFixed(0)}%`;
@@ -75,16 +90,16 @@ export function DetectionOverlay({
         const textHeight = 24;
 
         // Position label above box, or below if too close to top
-        const labelY = bbox.y1 > 30 ? bbox.y1 - textHeight : bbox.y1 + boxHeight;
+        const labelY = y1 > 30 ? y1 - textHeight : y1 + boxHeight;
 
         // Draw label background
         ctx.fillStyle = color;
-        ctx.fillRect(bbox.x1, labelY, textWidth, textHeight);
+        ctx.fillRect(x1, labelY, textWidth, textHeight);
 
         // Draw label text
         ctx.fillStyle = '#ffffff';
         ctx.textBaseline = 'middle';
-        ctx.fillText(label, bbox.x1 + 6, labelY + textHeight / 2);
+        ctx.fillText(label, x1 + 6, labelY + textHeight / 2);
       });
 
       // Continue animation loop
@@ -121,7 +136,7 @@ export function DetectionOverlay({
       video.removeEventListener('play', handleVideoPlay);
       window.removeEventListener('resize', handleResize);
     };
-  }, [detections, videoRef]);
+  }, [detections, videoRef, frameWidth, frameHeight]);
 
   return (
     <canvas

@@ -151,6 +151,8 @@ class VideoStreamProcessor:
                     "timestamp": frame_data["timestamp"],
                     "detections": [det.model_dump() for det in detections],
                     "processing_time_ms": processing_time,
+                    "frameWidth": frame.shape[1],  # Width of processed frame
+                    "frameHeight": frame.shape[0],  # Height of processed frame
                     "stats": self.stats.copy()
                 }
                 await self.on_detection_callback(result)

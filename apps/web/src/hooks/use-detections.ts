@@ -16,6 +16,8 @@ export interface UseDetectionsReturn {
   latestFrame: number | null;
   latestTimestamp: number | null;
   processingTimeMs: number;
+  frameWidth: number | null;
+  frameHeight: number | null;
   stats: {
     framesReceived: number;
     framesProcessed: number;
@@ -53,6 +55,8 @@ export function useDetections(
   const [latestFrame, setLatestFrame] = useState<number | null>(null);
   const [latestTimestamp, setLatestTimestamp] = useState<number | null>(null);
   const [processingTimeMs, setProcessingTimeMs] = useState(0);
+  const [frameWidth, setFrameWidth] = useState<number | null>(null);
+  const [frameHeight, setFrameHeight] = useState<number | null>(null);
   const [stats, setStats] = useState<{
     framesReceived: number;
     framesProcessed: number;
@@ -73,6 +77,10 @@ export function useDetections(
       setLatestFrame(data.frameNumber);
       setLatestTimestamp(data.timestamp);
       setProcessingTimeMs(data.processingTimeMs);
+
+      // Update frame dimensions
+      setFrameWidth((data as any).frameWidth);
+      setFrameHeight((data as any).frameHeight);
 
       // Update stats if available
       if (data.stats) {
@@ -120,6 +128,8 @@ export function useDetections(
     setLatestFrame(null);
     setLatestTimestamp(null);
     setProcessingTimeMs(0);
+    setFrameWidth(null);
+    setFrameHeight(null);
     setStats(null);
   }, []);
 
@@ -136,6 +146,8 @@ export function useDetections(
     latestFrame,
     latestTimestamp,
     processingTimeMs,
+    frameWidth,
+    frameHeight,
     stats,
     addDetectionResult,
     clearDetections,

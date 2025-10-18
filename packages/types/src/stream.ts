@@ -83,6 +83,8 @@ export interface WSDetectionMessage {
       };
     }>;
     processingTimeMs: number;
+    frameWidth: number;
+    frameHeight: number;
     stats: {
       frames_received: number;
       frames_processed: number;

@@ -48,10 +48,29 @@ class WebRTCConnectionHandler:
         self.relay = MediaRelay()
         self.video_track: Optional[VideoTransformTrack] = None
         self.on_frame_callback: Optional[Callable] = None
+        self.frame_task: Optional[asyncio.Task] = None
 
     def set_frame_callback(self, callback: Callable):
         """Set callback function to be called when a frame is received"""
         self.on_frame_callback = callback
+
+    async def _consume_frames(self):
+        """
+        Consume frames from the video track
+        This is necessary for aiortc - tracks must be actively consumed
+        """
+        try:
+            while self.video_track:
+                try:
+                    # Receive frame (this triggers the VideoTransformTrack.recv method)
+                    await self.video_track.recv()
+                except Exception as e:
+                    logger.error(f"Error receiving frame: {e}")
+                    break
+        except asyncio.CancelledError:
+            logger.info("Frame consumption task cancelled")
+        except Exception as e:
+            logger.error(f"Error in frame consumption loop: {e}")
 
     async def create_peer_connection(self) -> RTCPeerConnection:
         """Create a new RTCPeerConnection"""
@@ -69,10 +88,16 @@ class WebRTCConnectionHandler:
                     on_frame=self.on_frame_callback
                 )
 
+                # Start consuming frames from the track
+                self.frame_task = asyncio.create_task(self._consume_frames())
+                logger.info("Started frame consumption task")
+
                 # Keep the track alive
                 @track.on("ended")
                 async def on_ended():
                     logger.info("Video track ended")
+                    if self.frame_task:
+                        self.frame_task.cancel()
 
         @self.pc.on("connectionstatechange")
         async def on_connectionstatechange():
@@ -135,6 +160,15 @@ class WebRTCConnectionHandler:
 
     async def close(self):
         """Close the peer connection"""
+        # Cancel frame consumption task
+        if self.frame_task:
+            self.frame_task.cancel()
+            try:
+                await self.frame_task
+            except asyncio.CancelledError:
+                pass
+            self.frame_task = None
+
         if self.pc:
             await self.pc.close()
             logger.info("Peer connection closed")

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     API_DESCRIPTION: str = "Sky Hazard Detection API for Flying Taxis"
 
     # CORS Settings
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "https://00ddcee62d4f.ngrok-free.app"]
 
     # File Upload Settings
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     MODELS_DIR: str = "models"  # Directory to store model files
     MODEL_NAME: str = "yolo11n.pt"  # Model filename
     MODEL_CACHE_ENABLED: bool = True  # Cache models to avoid re-downloading
+    MODEL_DEVICE: str = "cpu"  # Device to run model on: "cpu", "cuda", or "cuda:0"
     CONFIDENCE_THRESHOLD: float = 0.25
     IOU_THRESHOLD: float = 0.45
 

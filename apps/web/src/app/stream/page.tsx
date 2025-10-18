@@ -52,6 +52,8 @@ export default function StreamPage() {
     detectionCount,
     latestFrame,
     processingTimeMs,
+    frameWidth,
+    frameHeight,
     stats: detectionStats,
     addDetectionResult,
     clearDetections,
@@ -207,6 +209,8 @@ export default function StreamPage() {
                 <DetectionOverlay
                   detections={detections}
                   videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+                  frameWidth={frameWidth}
+                  frameHeight={frameHeight}
                 />
               )}
             </div>

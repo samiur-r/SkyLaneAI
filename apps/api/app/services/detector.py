@@ -49,7 +49,10 @@ class YOLODetector:
 
             # Load the model (will download if not exists)
             self.model = YOLO(self.model_path)
-            print(f"✓ YOLO model loaded successfully")
+
+            # Move model to specified device (CPU or GPU)
+            self.model.to(settings.MODEL_DEVICE)
+            print(f"✓ YOLO model loaded successfully on device: {settings.MODEL_DEVICE}")
 
         except Exception as e:
             print(f"✗ Error loading YOLO model: {e}")
@@ -75,6 +78,7 @@ class YOLODetector:
             image,
             conf=settings.CONFIDENCE_THRESHOLD,
             iou=settings.IOU_THRESHOLD,
+            device=settings.MODEL_DEVICE,
             verbose=False
         )
 
