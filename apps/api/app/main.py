@@ -1,8 +1,23 @@
 """FastAPI main application"""
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    print(f"🚀 {settings.API_TITLE} v{settings.API_VERSION} starting...")
+    print(f"📚 API Documentation: http://localhost:8000/docs")
+
+    yield
+
+    # Shutdown
+    print("👋 Shutting down SkyLaneAI API...")
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -10,7 +25,8 @@ app = FastAPI(
     version=settings.API_VERSION,
     description=settings.API_DESCRIPTION,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -34,16 +50,3 @@ async def root():
         "version": settings.API_VERSION,
         "docs": "/docs"
     }
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Startup event handler"""
-    print(f"🚀 {settings.API_TITLE} v{settings.API_VERSION} starting...")
-    print(f"📚 API Documentation: http://localhost:8000/docs")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Shutdown event handler"""
-    print("👋 Shutting down SkyLaneAI API...")
