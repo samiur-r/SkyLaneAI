@@ -153,6 +153,17 @@ export class WebRTCClient {
       throw new Error('No video track found in stream');
     }
 
+    // Check if track is already added
+    const senders = this.peerConnection.getSenders();
+    const trackAlreadyAdded = senders.some(
+      sender => sender.track?.id === videoTrack.id
+    );
+
+    if (trackAlreadyAdded) {
+      console.log('Video track already added, skipping');
+      return;
+    }
+
     // Add track to peer connection
     this.peerConnection.addTrack(videoTrack, stream);
     console.log('Video track added to peer connection');

@@ -79,29 +79,30 @@ export function StreamControls({
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Camera Device
           </label>
-          <Select
-            value={selectedDevice || undefined}
-            onValueChange={onDeviceChange}
-            disabled={isStreaming || devices.length === 0}
-          >
-            <SelectTrigger>
-              <Camera className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Select camera" />
-            </SelectTrigger>
-            <SelectContent>
-              {devices.length === 0 ? (
-                <SelectItem value="none" disabled>
-                  No cameras found
-                </SelectItem>
-              ) : (
-                devices.map((device) => (
+          {devices.length === 0 ? (
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-md">
+              <Camera className="w-4 h-4" />
+              <span>No cameras found</span>
+            </div>
+          ) : (
+            <Select
+              value={selectedDevice || undefined}
+              onValueChange={onDeviceChange}
+              disabled={isStreaming}
+            >
+              <SelectTrigger>
+                <Camera className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Select camera" />
+              </SelectTrigger>
+              <SelectContent>
+                {devices.map((device) => (
                   <SelectItem key={device.deviceId} value={device.deviceId}>
                     {device.label}
                   </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Start/Stop Buttons */}
@@ -109,7 +110,7 @@ export function StreamControls({
           {!isStreaming ? (
             <Button
               onClick={onStart}
-              disabled={isLoading || !selectedDevice}
+              disabled={isLoading}
               className="flex-1"
               size="lg"
             >
@@ -140,13 +141,22 @@ export function StreamControls({
 
         {/* Info Text */}
         {!isStreaming && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            {devices.length === 0
-              ? 'No camera detected. Please connect a camera.'
-              : !selectedDevice
-              ? 'Please select a camera to start streaming.'
-              : 'Ready to start streaming. Click "Start Stream" to begin.'}
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              {devices.length === 0
+                ? 'Click "Start Stream" to request camera access.'
+                : !selectedDevice
+                ? 'Please select a camera to start streaming.'
+                : 'Ready to start streaming. Click "Start Stream" to begin.'}
+            </p>
+            {typeof window !== 'undefined' &&
+             window.location.protocol === 'http:' &&
+             window.location.hostname !== 'localhost' && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 text-center font-medium">
+                ⚠️ Camera requires HTTPS (not HTTP)
+              </p>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

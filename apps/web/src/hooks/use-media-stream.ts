@@ -38,9 +38,17 @@ export function useMediaStream(
    */
   const refreshDevices = useCallback(async () => {
     try {
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.error('Media Devices API not supported');
+        setDevices([]);
+        return;
+      }
+
       const deviceList = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = deviceList
         .filter((device) => device.kind === 'videoinput')
+        .filter((device) => device.deviceId !== '') // Filter out empty device IDs
         .map((device) => ({
           deviceId: device.deviceId,
           label: device.label || `Camera ${device.deviceId.slice(0, 5)}`,
@@ -55,7 +63,8 @@ export function useMediaStream(
       }
     } catch (err) {
       console.error('Failed to enumerate devices:', err);
-      setError('Failed to get camera list');
+      // Don't set error here - devices might populate after permission is granted
+      setDevices([]);
     }
   }, [selectedDevice]);
 
@@ -142,6 +151,10 @@ export function useMediaStream(
    */
   const switchDevice = useCallback(
     async (deviceId: string) => {
+      // Ignore empty strings
+      if (!deviceId || deviceId.trim() === '') {
+        return;
+      }
       setSelectedDevice(deviceId);
       if (streamRef.current) {
         // Re-request stream with new device

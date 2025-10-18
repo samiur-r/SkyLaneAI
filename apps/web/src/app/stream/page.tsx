@@ -113,25 +113,46 @@ export default function StreamPage() {
    * When stream is available, connect to WebRTC
    */
   useEffect(() => {
-    if (stream && isStreaming) {
-      const setupWebRTC = async () => {
-        try {
-          // Connect to WebRTC server
-          await connect();
+    if (!stream || !isStreaming || isConnected) {
+      return;
+    }
 
-          // Add video stream to connection
-          await addVideoStream(stream);
+    let isMounted = true;
 
-          console.log('WebRTC connected and streaming');
-        } catch (error) {
-          console.error('Failed to setup WebRTC:', error);
+    const setupWebRTC = async () => {
+      if (!isMounted) return;
+
+      try {
+        console.log('Setting up WebRTC connection...');
+
+        // Connect to WebRTC server
+        await connect();
+
+        if (!isMounted) return;
+
+        // Small delay to ensure connection is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (!isMounted) return;
+
+        // Add video stream to connection
+        await addVideoStream(stream);
+
+        console.log('WebRTC connected and streaming');
+      } catch (error) {
+        console.error('Failed to setup WebRTC:', error);
+        if (isMounted) {
           setIsStreaming(false);
         }
-      };
+      }
+    };
 
-      setupWebRTC();
-    }
-  }, [stream, isStreaming, connect, addVideoStream]);
+    setupWebRTC();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [stream, isStreaming, isConnected, connect, addVideoStream]);
 
   /**
    * Update settings
