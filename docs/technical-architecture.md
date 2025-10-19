@@ -1660,19 +1660,612 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000
 
 ---
 
+## Video Upload and Processing
+
+### Overview
+
+In addition to live camera streaming, SkyLaneAI v2 supports uploading and processing pre-recorded video files. This feature allows users to analyze existing footage with the same YOLOv11 detection pipeline used for live streams.
+
+### Architecture
+
+The video upload feature follows a similar architecture to live streaming but replaces WebRTC with file-based frame processing:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    VIDEO UPLOAD FLOW                             │
+└─────────────────────────────────────────────────────────────────┘
+
+1. USER UPLOADS VIDEO
+   ↓
+   Browser → FormData → POST /api/v1/video/upload
+   ↓
+2. SERVER PROCESSES UPLOAD
+   ↓
+   Save to temp directory → Extract metadata with OpenCV
+   ↓
+   Return: video_id, duration, fps, resolution, total_frames
+   ↓
+3. CLIENT DISPLAYS VIDEO
+   ↓
+   Create Object URL → Load in <video> element
+   ↓
+4. START DETECTION PROCESSING
+   ↓
+   Connect WebSocket: ws://localhost:8000/api/v1/video/ws/{video_id}
+   ↓
+   Send: { type: "start", speed: 1.0 }
+   ↓
+5. SERVER PROCESSES VIDEO
+   ↓
+   cv2.VideoCapture → Read frame → YOLO detection → Send via WebSocket
+   ↓
+6. CLIENT RECEIVES DETECTIONS
+   ↓
+   Match frame_number with video.currentTime → Draw on canvas overlay
+   ↓
+7. PLAYBACK CONTROLS
+   ↓
+   Play/Pause/Seek/Speed → WebSocket messages → Server adjusts processing
+```
+
+---
+
+### Backend Components
+
+#### 1. VideoFileProcessor ([video_file_processor.py](apps/api/app/services/video_file_processor.py))
+
+**Purpose**: Process uploaded video files frame-by-frame with YOLO detection
+
+```python
+class VideoFileProcessor:
+    """
+    Processes uploaded video files:
+    - Opens video with cv2.VideoCapture
+    - Extracts metadata (fps, duration, resolution, codec)
+    - Reads frames sequentially
+    - Runs YOLO detection on each frame
+    - Supports playback controls (play/pause/seek/speed)
+    - Sends detections via WebSocket callback
+    """
+```
+
+**Key Methods**:
+- `initialize()`: Open video file and extract metadata
+- `start_processing()`: Begin frame-by-frame processing
+- `pause_processing()`: Pause at current frame
+- `resume_processing()`: Continue from current frame
+- `stop_processing()`: Stop and cleanup
+- `seek_to_frame(frame_number)`: Jump to specific frame
+- `seek_to_timestamp(timestamp)`: Jump to specific time
+- `set_playback_speed(speed)`: Adjust processing speed (0.1x - 4x)
+
+**Processing Loop**:
+```python
+async def _process_loop(self):
+    while self.is_playing:
+        if self.is_paused:
+            await asyncio.sleep(0.1)
+            continue
+
+        # Read next frame
+        ret, frame = self.cap.read()
+        if not ret:
+            await self._on_video_completed()
+            break
+
+        # Run YOLO detection
+        detections, processing_time = await asyncio.to_thread(
+            detector.detect, frame
+        )
+
+        # Send to frontend
+        await self.on_detection_callback({
+            "frame_number": self.current_frame_number,
+            "timestamp": frame_number / fps,
+            "detections": detections,
+            "processing_time_ms": processing_time
+        })
+
+        # Wait for next frame (accounting for playback speed)
+        await asyncio.sleep(frame_interval / playback_speed)
+```
+
+**Metadata Extraction**:
+```python
+# Extract video metadata using OpenCV
+fps = cap.get(cv2.CAP_PROP_FPS)
+total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+duration = total_frames / fps
+```
+
+---
+
+#### 2. Video Routes ([video_routes.py](apps/api/app/api/video_routes.py))
+
+**Upload Endpoint**:
+```http
+POST /api/v1/video/upload
+Content-Type: multipart/form-data
+
+Request:
+- file: Video file (MP4, AVI, MOV, MKV)
+
+Response:
+{
+  "video_id": "uuid",
+  "filename": "sample.mp4",
+  "duration": 30.5,
+  "fps": 30.0,
+  "total_frames": 915,
+  "width": 1920,
+  "height": 1080,
+  "size_mb": 12.4,
+  "codec": "h264"
+}
+```
+
+**Metadata Endpoint**:
+```http
+GET /api/v1/video/{video_id}/metadata
+
+Response:
+{
+  "video_id": "uuid",
+  "filename": "sample.mp4",
+  "duration": 30.5,
+  ...
+}
+```
+
+**Delete Endpoint**:
+```http
+DELETE /api/v1/video/{video_id}
+
+Response:
+{
+  "message": "Video deleted successfully",
+  "video_id": "uuid"
+}
+```
+
+**WebSocket Endpoint**:
+```
+ws://localhost:8000/api/v1/video/ws/{video_id}
+```
+
+**WebSocket Messages (Client → Server)**:
+```json
+// Start processing
+{ "type": "start", "speed": 1.0 }
+
+// Pause processing
+{ "type": "pause" }
+
+// Resume processing
+{ "type": "resume" }
+
+// Stop processing
+{ "type": "stop" }
+
+// Seek to frame
+{ "type": "seek", "frame_number": 150 }
+
+// Seek to timestamp
+{ "type": "seek", "timestamp": 5.2 }
+
+// Update settings
+{
+  "type": "settings",
+  "data": {
+    "process_fps": 10,
+    "confidence_threshold": 0.25,
+    "playback_speed": 1.5
+  }
+}
+```
+
+**WebSocket Messages (Server → Client)**:
+```json
+// Detection results (same format as live stream)
+{
+  "type": "detection",
+  "data": {
+    "frame_number": 123,
+    "timestamp": 4.1,
+    "detections": [...],
+    "processing_time_ms": 45.2,
+    "frameWidth": 1920,
+    "frameHeight": 1080
+  }
+}
+
+// Processing progress
+{
+  "type": "progress",
+  "data": {
+    "current_frame": 123,
+    "total_frames": 915,
+    "percentage": 13.4
+  }
+}
+
+// Video completed
+{ "type": "completed" }
+
+// State changes
+{ "type": "started" }
+{ "type": "paused" }
+{ "type": "resumed" }
+{ "type": "stopped" }
+{ "type": "seeked", "frame_number": 150 }
+```
+
+---
+
+### Frontend Components
+
+#### 1. useVideoUpload Hook ([use-video-upload.ts](apps/web/src/hooks/use-video-upload.ts))
+
+**Purpose**: Manage video file uploads
+
+```typescript
+export function useVideoUpload() {
+  const uploadVideo = async (file: File) => {
+    // Validate file type and size
+    // Create FormData and upload
+    // Return metadata
+  }
+
+  const deleteVideo = async (videoId: string) => {
+    // Delete from server
+  }
+
+  return {
+    uploadVideo,
+    deleteVideo,
+    uploadProgress,
+    videoMetadata,
+    isUploading,
+    error
+  }
+}
+```
+
+**Features**:
+- File validation (type, size)
+- Upload progress tracking
+- Error handling
+- Metadata storage
+
+---
+
+#### 2. useVideoStream Hook ([use-video-stream.ts](apps/web/src/hooks/use-video-stream.ts))
+
+**Purpose**: WebSocket connection for video detection streaming
+
+```typescript
+export function useVideoStream({ videoId, onDetection, onProgress }) {
+  const connect = async () => {
+    // Connect to ws://localhost:8000/api/v1/video/ws/{videoId}
+  }
+
+  const play = (speed: number) => {
+    // Send start message
+  }
+
+  const pause = () => {
+    // Send pause message
+  }
+
+  const seek = (options) => {
+    // Send seek message
+  }
+
+  return {
+    connect,
+    disconnect,
+    play,
+    pause,
+    resume,
+    stop,
+    seek,
+    updateSettings,
+    connectionStatus,
+    isConnected,
+    progress
+  }
+}
+```
+
+**Similar to `useWebRTC`** but for video files instead of live camera.
+
+---
+
+#### 3. VideoUpload Component ([video-upload.tsx](apps/web/src/components/video/video-upload.tsx))
+
+**Purpose**: Drag-and-drop upload interface
+
+**Features**:
+- Drag-and-drop zone
+- File type validation
+- Upload progress bar
+- Selected file preview
+- Error/success messages
+
+**UI States**:
+- **Idle**: Drag-and-drop zone with upload icon
+- **File Selected**: Show file info (name, size)
+- **Uploading**: Progress bar with percentage
+- **Success**: Checkmark with success message
+- **Error**: Error alert with message
+
+---
+
+#### 4. VideoPlayer Component ([video-player.tsx](apps/web/src/components/video/video-player.tsx))
+
+**Purpose**: Play uploaded video with custom controls
+
+**Features**:
+- HTML5 `<video>` element with Object URL
+- Custom controls overlay
+- Play/pause button
+- Seek slider (timeline)
+- Skip forward/backward (10s)
+- Playback speed selector (0.5x, 1x, 1.5x, 2x)
+- Time display (current / duration)
+
+**Synchronization**:
+```typescript
+// Video player plays at native FPS
+// Server processes at configured FPS (e.g., 10 FPS)
+// Frontend syncs detections with video time
+
+const handleTimeUpdate = () => {
+  const currentFrame = Math.floor(video.currentTime * fps)
+  // Show detections matching current frame
+  const matchingDetections = detections.filter(
+    d => d.frameNumber === currentFrame
+  )
+  setVisibleDetections(matchingDetections)
+}
+```
+
+---
+
+#### 5. Video Detection Page ([/video/page.tsx](apps/web/src/app/video/page.tsx))
+
+**Two-Mode Interface**:
+
+**Mode 1: Upload Mode** (no video uploaded)
+- Large drag-and-drop upload zone
+- Upload button
+- Instructions and supported formats
+
+**Mode 2: Playback Mode** (video uploaded)
+- **Left Column (2/3 width)**:
+  - Video player with detection overlay
+  - Video metadata card (duration, resolution, FPS, size)
+  - Processing progress bar
+  - Detection statistics
+
+- **Right Column (1/3 width)**:
+  - Connection status badge
+  - Start/Pause/Resume/Delete buttons
+  - Detection settings (FPS, confidence threshold)
+
+**Reused Components**:
+- `DetectionOverlay` - Same overlay used for live stream
+- `DetectionStats` - Same statistics display
+- `DetectionSettings` - Same settings panel
+
+**State Management**:
+```typescript
+const [videoMetadata, setVideoMetadata] = useState(null)
+const [videoFile, setVideoFile] = useState(null)
+const [isProcessing, setIsProcessing] = useState(false)
+
+// Upload flow
+1. User uploads file → setVideoFile(file)
+2. Upload completes → setVideoMetadata(metadata)
+3. Mode switches to playback
+
+// Processing flow
+1. Click "Start Processing" → connect() → play()
+2. Receive detections → addDetectionResult()
+3. Detections drawn on overlay
+4. Progress updates in real-time
+```
+
+---
+
+### Data Flow: Video Upload to Detection
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    COMPLETE VIDEO FLOW                           │
+└─────────────────────────────────────────────────────────────────┘
+
+Step 1: UPLOAD
+  User drags video → VideoUpload component → FormData
+  ↓
+  POST /api/v1/video/upload
+  ↓
+  Server saves to temp/uploads/{uuid}.mp4
+  ↓
+  Extract metadata with cv2.VideoCapture
+  ↓
+  Return video_id + metadata
+  ↓
+  Frontend stores metadata, shows video player
+
+Step 2: CONNECT
+  User clicks "Start Processing"
+  ↓
+  useVideoStream.connect()
+  ↓
+  WebSocket connects to ws://.../video/ws/{video_id}
+  ↓
+  Server creates VideoFileProcessor instance
+  ↓
+  Connection established
+
+Step 3: START PROCESSING
+  Frontend sends: { type: "start", speed: 1.0 }
+  ↓
+  Server starts processing loop
+  ↓
+  Read frame with cv2.VideoCapture
+  ↓
+  Run YOLO detection (reuses detector.detect())
+  ↓
+  Send detection results via WebSocket
+
+Step 4: RECEIVE DETECTIONS
+  Frontend receives detection message
+  ↓
+  useVideoStream calls onDetection(message)
+  ↓
+  useDetections.addDetectionResult(message)
+  ↓
+  State updated with new detections
+  ↓
+  DetectionOverlay re-renders with bounding boxes
+
+Step 5: SYNC WITH VIDEO
+  Video plays at native FPS (e.g., 30 FPS)
+  ↓
+  Server processes at configured FPS (e.g., 10 FPS)
+  ↓
+  Frontend buffers all detections
+  ↓
+  On video.timeupdate:
+    - Calculate current frame number
+    - Filter detections matching current frame
+    - Show only matching detections on overlay
+
+Step 6: PLAYBACK CONTROLS
+  User clicks pause → Send { type: "pause" }
+  ↓
+  Server pauses frame reading
+  ↓
+  User seeks to 5s → Send { type: "seek", timestamp: 5.0 }
+  ↓
+  Server: cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+  ↓
+  Processing resumes from new position
+```
+
+---
+
+### Key Differences: Live Stream vs Video Upload
+
+| Feature | Live Stream (WebRTC) | Video Upload |
+|---------|---------------------|--------------|
+| **Input Source** | Browser camera via WebRTC | Uploaded video file |
+| **Frame Source** | `VideoTransformTrack.recv()` | `cv2.VideoCapture.read()` |
+| **Frame Rate** | Camera FPS (30 FPS) | Video native FPS or configurable |
+| **Playback Control** | None (real-time only) | Play, pause, seek, speed control |
+| **Video Display** | MediaStream on `<video>` | Object URL on `<video>` |
+| **Frame Sync** | Real-time (no sync needed) | Sync by frame number/timestamp |
+| **Processing** | Continuous stream | Can pause/resume/seek |
+| **Storage** | None (live only) | Temporary file storage |
+| **Detection Pipeline** | VideoStreamProcessor | VideoFileProcessor |
+| **WebSocket** | `/api/v1/stream/ws` | `/api/v1/video/ws/{video_id}` |
+
+---
+
+### Shared Components
+
+Both live streaming and video upload **reuse the same**:
+1. **YOLODetector** - Same YOLO model and detection logic
+2. **DetectionOverlay** - Same canvas rendering for bounding boxes
+3. **DetectionStats** - Same statistics display component
+4. **DetectionSettings** - Same settings panel (FPS, confidence)
+5. **Detection Types** - Same TypeScript interfaces
+6. **Detection Processing** - Similar frame processing pattern
+
+This design ensures **consistency** and **code reuse** across both features.
+
+---
+
+### File Storage and Cleanup
+
+**Upload Directory**:
+```python
+VIDEO_UPLOAD_DIR = "temp/uploads"  # Configurable
+```
+
+**File Naming**:
+```python
+# Files stored as: {uuid}.{extension}
+# Example: 3fa85f64-5717-4562-b3fc-2c963f66afa6.mp4
+```
+
+**Cleanup Strategy**:
+- Videos deleted when user clicks "Delete" button
+- Future: Auto-cleanup after `VIDEO_CLEANUP_HOURS` (default: 24 hours)
+- Future: Cleanup on server restart (scan temp directory)
+
+**Storage Limits**:
+```python
+VIDEO_MAX_SIZE_MB = 100  # Maximum file size
+VIDEO_ALLOWED_FORMATS = [".mp4", ".avi", ".mov", ".mkv"]
+```
+
+---
+
+### Performance Considerations
+
+**1. Frame Processing Rate**:
+- Video plays at native FPS (e.g., 30 FPS)
+- Server processes at configured FPS (e.g., 10 FPS)
+- Reduces CPU usage while maintaining smooth detection
+
+**2. Playback Speed Control**:
+- User can speed up (2x) or slow down (0.5x) processing
+- Useful for quick analysis or detailed inspection
+
+**3. Frame Skipping**:
+- Server processes every Nth frame based on FPS setting
+- Example: 30 FPS video, 10 FPS processing = process every 3rd frame
+
+**4. Memory Management**:
+- Video file kept in temp storage (not loaded into memory)
+- Only current frame in memory during processing
+- Detections sent immediately (not buffered on server)
+
+**5. Frontend Buffering**:
+- Frontend buffers all received detections
+- Filters by frame number for current video time
+- Enables smooth playback without re-requesting detections
+
+---
+
 ## Next Steps
 
-### Frontend Implementation (Phase 2.3-2.6)
+### Phase 3: Video Upload Enhancements
 
-1. Create WebRTC client library
-2. Build video capture component
-3. Implement detection overlay
-4. Add control panel
-5. Integrate and test
+**Completed ✅**:
+- Video upload and storage
+- Frame-by-frame processing
+- Playback controls
+- Detection overlay
+- Progress tracking
 
-### Future Enhancements (Phase 3)
+**Future Enhancements**:
+- Export processed video with bounding boxes burned in
+- Download detection results as JSON/CSV
+- Video trimming before processing
+- Batch video processing (multiple videos)
+- Video thumbnails/previews
+- Detection timeline visualization
+- Auto-cleanup scheduled task
 
-- Database integration for detection history
+### Phase 4: Database Integration
+
+- Store detection history
 - User authentication
 - Analytics dashboard
 - Custom YOLO training
@@ -1681,4 +2274,4 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000
 
 ---
 
-*Last updated: 2025-10-18*
+*Last updated: 2025-10-19*
