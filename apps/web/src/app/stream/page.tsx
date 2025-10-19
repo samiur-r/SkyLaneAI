@@ -17,7 +17,8 @@ import { DetectionSettings } from '@/components/controls/detection-settings';
 import type { StreamSettings } from '@repo/types';
 
 const WS_URL =
-  process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v1/stream/ws';
+  process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000';
+const WS_STREAM_URL = `${WS_URL}/api/v1/stream/ws`;
 
 export default function StreamPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -72,7 +73,7 @@ export default function StreamPage() {
     addVideoStream,
     updateSettings,
   } = useWebRTC({
-    wsUrl: WS_URL,
+    wsUrl: WS_STREAM_URL,
     onDetection: (message) => {
       addDetectionResult(message);
     },

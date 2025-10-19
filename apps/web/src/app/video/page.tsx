@@ -204,7 +204,7 @@ export default function VideoPage() {
         {!videoMetadata && (
           <div className="max-w-3xl mx-auto">
             <VideoUpload
-              onUploadComplete={(file) => {
+              onFileSelected={(file) => {
                 setVideoFile(file);
               }}
               onUploadStart={clearError}

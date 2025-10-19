@@ -53,7 +53,9 @@ class VideoFileProcessor:
 
         # Statistics
         self.stats = {
+            "frames_received": 0,
             "frames_processed": 0,
+            "frames_skipped": 0,
             "detections_count": 0,
             "avg_processing_time": 0,
             "start_time": None,
@@ -236,6 +238,9 @@ class VideoFileProcessor:
                     await self._on_video_completed()
                     break
 
+                # Count frame as received
+                self.stats["frames_received"] += 1
+
                 # Process frame
                 await self._process_frame(frame, self.current_frame_number)
 
@@ -295,7 +300,9 @@ class VideoFileProcessor:
                     "frameWidth": frame.shape[1],
                     "frameHeight": frame.shape[0],
                     "stats": {
+                        "frames_received": self.stats["frames_received"],
                         "frames_processed": self.stats["frames_processed"],
+                        "frames_skipped": self.stats["frames_skipped"],
                         "detections_count": self.stats["detections_count"],
                         "avg_processing_time": self.stats["avg_processing_time"]
                     }

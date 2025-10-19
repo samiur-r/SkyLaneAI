@@ -14,7 +14,8 @@ import { Progress } from '@/components/ui/progress';
 import type { VideoUploadMetadata } from '@repo/types';
 
 export interface VideoUploadProps {
-  onUploadComplete: (metadata: VideoUploadMetadata) => void;
+  onFileSelected?: (file: File) => void;
+  onUploadComplete?: (metadata: VideoUploadMetadata) => void;
   onUploadStart?: () => void;
   isUploading: boolean;
   uploadProgress: number;
@@ -23,6 +24,7 @@ export interface VideoUploadProps {
 }
 
 export function VideoUpload({
+  onFileSelected,
   onUploadComplete,
   onUploadStart,
   isUploading,
@@ -47,9 +49,10 @@ export function VideoUpload({
       }
 
       setSelectedFile(file);
+      onFileSelected?.(file);
       onUploadStart?.();
     },
-    [onUploadStart]
+    [onFileSelected, onUploadStart]
   );
 
   /**
