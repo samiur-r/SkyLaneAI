@@ -1,6 +1,6 @@
 # SkyLaneAI v2 - Technical Architecture
 
-**Last Updated**: 2025-10-18
+**Last Updated**: 2025-10-19
 
 ---
 
@@ -1664,48 +1664,83 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000
 
 ### Overview
 
-In addition to live camera streaming, SkyLaneAI v2 supports uploading and processing pre-recorded video files. This feature allows users to analyze existing footage with the same YOLOv11 detection pipeline used for live streams.
+In addition to live camera streaming, SkyLaneAI v2 supports uploading and processing pre-recorded video files. This feature uses **MJPEG streaming** (Motion JPEG) to deliver annotated video frames with bounding boxes already rendered on them.
+
+### Key Innovation: MJPEG Streaming
+
+Unlike the live stream feature which uses WebRTC + Canvas overlay, the video upload feature uses a **different approach** inspired by the original SkylaneAI:
+
+**Traditional Approach (Live Stream)**:
+- Video plays independently in HTML5 `<video>` element
+- Detections sent via WebSocket as JSON
+- Frontend draws bounding boxes on Canvas overlay
+- **Challenge**: Synchronization between video and detections
+
+**MJPEG Approach (Video Upload)** ✅:
+- Backend processes video and **renders bounding boxes directly onto frames**
+- Annotated frames buffered in memory
+- After processing completes, frames streamed as MJPEG (Motion JPEG)
+- Frontend displays MJPEG stream in `<img>` tag
+- **Benefit**: Perfect synchronization (frames and boxes are one image)
 
 ### Architecture
 
-The video upload feature follows a similar architecture to live streaming but replaces WebRTC with file-based frame processing:
+The video upload feature follows a separated processing/playback model:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    VIDEO UPLOAD FLOW                             │
+│              NEW VIDEO UPLOAD FLOW (MJPEG Streaming)            │
 └─────────────────────────────────────────────────────────────────┘
 
-1. USER UPLOADS VIDEO
+PHASE 1: UPLOAD & METADATA
    ↓
+1. USER UPLOADS VIDEO
    Browser → FormData → POST /api/v1/video/upload
    ↓
-2. SERVER PROCESSES UPLOAD
+2. SERVER SAVES & EXTRACTS METADATA
+   Save to temp/uploads/{uuid}.mp4 → cv2.VideoCapture → Extract metadata
    ↓
-   Save to temp directory → Extract metadata with OpenCV
+   Return: video_id, duration, fps, resolution, total_frames, codec
    ↓
-   Return: video_id, duration, fps, resolution, total_frames
+3. FRONTEND SHOWS PROCESSING UI
+   Display video info → Show "Start Processing" button
+
+PHASE 2: PROCESSING (Runs Once)
    ↓
-3. CLIENT DISPLAYS VIDEO
+4. USER CLICKS "START PROCESSING"
+   Connect WebSocket → Send { type: "start" }
    ↓
-   Create Object URL → Load in <video> element
+5. SERVER PROCESSES ALL FRAMES
+   Loop through video:
+     - Read frame with cv2.VideoCapture
+     - Run YOLO detection
+     - Render bounding boxes ONTO frame using cv2.rectangle()
+     - Buffer annotated frame in memory (deque)
+     - Send progress updates (0% → 100%)
    ↓
-4. START DETECTION PROCESSING
+6. PROCESSING COMPLETES
+   All annotated frames buffered → Set processing_completed = True
    ↓
-   Connect WebSocket: ws://localhost:8000/api/v1/video/ws/{video_id}
+   Frontend receives "completed" message → Shows "Play" button
+
+PHASE 3: PLAYBACK (Can Replay Multiple Times)
    ↓
-   Send: { type: "start", speed: 1.0 }
+7. USER CLICKS "PLAY"
+   Frontend loads: <img src="/api/v1/video/{video_id}/mjpeg">
    ↓
-5. SERVER PROCESSES VIDEO
+8. SERVER STREAMS MJPEG
+   Read from frame buffer → Encode as JPEG → Stream with MJPEG headers
    ↓
-   cv2.VideoCapture → Read frame → YOLO detection → Send via WebSocket
+   multipart/x-mixed-replace boundary format
    ↓
-6. CLIENT RECEIVES DETECTIONS
+9. FRONTEND DISPLAYS
+   MjpegPlayer component shows annotated frames
    ↓
-   Match frame_number with video.currentTime → Draw on canvas overlay
+   Bounding boxes already on frames (perfect sync!)
    ↓
-7. PLAYBACK CONTROLS
-   ↓
-   Play/Pause/Seek/Speed → WebSocket messages → Server adjusts processing
+10. PLAYBACK CONTROLS
+   Pause → Stops MJPEG stream
+   Play again → Reloads MJPEG stream from beginning
 ```
 
 ---
@@ -1714,30 +1749,40 @@ The video upload feature follows a similar architecture to live streaming but re
 
 #### 1. VideoFileProcessor ([video_file_processor.py](apps/api/app/services/video_file_processor.py))
 
-**Purpose**: Process uploaded video files frame-by-frame with YOLO detection
+**Purpose**: Process uploaded video files frame-by-frame with YOLO detection and MJPEG streaming
 
 ```python
 class VideoFileProcessor:
     """
-    Processes uploaded video files:
+    Processes uploaded video files with MJPEG output:
     - Opens video with cv2.VideoCapture
     - Extracts metadata (fps, duration, resolution, codec)
     - Reads frames sequentially
     - Runs YOLO detection on each frame
-    - Supports playback controls (play/pause/seek/speed)
-    - Sends detections via WebSocket callback
+    - **NEW**: Renders bounding boxes onto frames using cv2.rectangle()
+    - **NEW**: Buffers annotated frames in deque (up to 10,000 frames)
+    - **NEW**: Supports MJPEG playback controls (play/pause/stop)
+    - Sends detections + progress via WebSocket callback
     """
 ```
 
 **Key Methods**:
+
+*Processing Phase:*
 - `initialize()`: Open video file and extract metadata
-- `start_processing()`: Begin frame-by-frame processing
+- `start_processing()`: Begin frame-by-frame processing (processes ALL frames)
 - `pause_processing()`: Pause at current frame
 - `resume_processing()`: Continue from current frame
 - `stop_processing()`: Stop and cleanup
-- `seek_to_frame(frame_number)`: Jump to specific frame
-- `seek_to_timestamp(timestamp)`: Jump to specific time
-- `set_playback_speed(speed)`: Adjust processing speed (0.1x - 4x)
+
+*MJPEG Playback Phase (NEW):*
+- `mjpeg_play()`: Start MJPEG playback (requires processing_completed = True)
+- `mjpeg_pause()`: Pause MJPEG stream
+- `mjpeg_resume()`: Resume MJPEG stream
+- `mjpeg_stop()`: Stop and reset to beginning
+- `is_mjpeg_ready()`: Check if processing completed and frames buffered
+- `get_annotated_frames()`: Get deque buffer of annotated frames
+- `clear_frame_buffer()`: Free memory by clearing frame buffer
 
 **Processing Loop**:
 ```python
@@ -2271,6 +2316,69 @@ VIDEO_ALLOWED_FORMATS = [".mp4", ".avi", ".mov", ".mkv"]
 - Custom YOLO training
 - Mobile app
 - Deployment (Docker, cloud)
+
+---
+
+## Summary: Video Upload Feature Architecture
+
+### Separation of Concerns
+
+The video upload feature has been redesigned to **separate processing from playback**:
+
+**Before (Coupled)**:
+- Processing and playback happened simultaneously
+- Couldn't replay without reprocessing
+- Complex synchronization issues
+
+**After (Separated)** ✅:
+- **Phase 1**: Process entire video once (0% → 100%)
+- **Phase 2**: Play processed video multiple times
+- No synchronization issues (frames pre-rendered)
+- Clean user experience
+
+### Key Components Summary
+
+**Backend**:
+1. **YOLODetector.render_detections()** - NEW method to draw bounding boxes on frames
+2. **VideoFileProcessor.annotated_frames** - NEW deque buffer for annotated frames
+3. **VideoFileProcessor.mjpeg_*()** - NEW playback control methods
+4. **GET /api/v1/video/{id}/mjpeg** - NEW MJPEG streaming endpoint
+5. **WebSocket messages** - NEW mjpeg_play/pause/resume/stop commands
+
+**Frontend**:
+1. **MjpegPlayer component** - NEW simple `<img>` tag for MJPEG streams
+2. **Separated UI states** - Processing vs Playback modes
+3. **Play/Pause controls** - Appear after processing completes
+
+### Technical Advantages
+
+✅ **Perfect Synchronization**: Frames and detections are merged on backend
+✅ **No Flickering**: Detections burned into frames, always visible
+✅ **Replayability**: Watch annotated video multiple times without reprocessing
+✅ **Simpler Frontend**: Just an `<img>` tag, no complex canvas overlay
+✅ **Backend-Controlled**: Video plays at exact processing FPS
+✅ **Memory Efficient**: Frames streamed on-demand, not stored on disk
+✅ **Proven Architecture**: Based on original SkylaneAI's successful implementation
+
+### User Workflow
+
+```
+1. Upload video → See video info
+2. Click "Start Processing" → Progress bar (0% → 100%)
+3. Wait for completion → "Play" button appears
+4. Click "Play" → Watch annotated video
+5. Can pause/resume/replay anytime
+```
+
+### Performance Characteristics
+
+| Metric | Value |
+|--------|-------|
+| **Frame Buffer** | Up to 10,000 frames in memory |
+| **MJPEG Quality** | 85% JPEG compression |
+| **Streaming FPS** | Matches processing FPS (default 10 FPS) |
+| **Memory Usage** | ~50-100 MB per minute of video |
+| **Replay Speed** | Instant (no reprocessing needed) |
 
 ---
 
