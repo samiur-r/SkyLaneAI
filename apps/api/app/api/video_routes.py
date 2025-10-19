@@ -4,11 +4,13 @@ import uuid
 import logging
 import subprocess
 import asyncio
+import time
 from pathlib import Path
 from typing import Dict, Any
 from fastapi import APIRouter, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 import json
+import cv2
 from app.services.video_file_processor import VideoFileProcessor
 from app.core.config import settings
 
@@ -364,6 +366,90 @@ async def stream_video(video_id: str, request: Request):
     )
 
 
+@router.get("/{video_id}/mjpeg")
+async def stream_mjpeg(video_id: str):
+    """
+    Stream annotated video as MJPEG from processor's completed frame buffer
+
+    This endpoint streams the processed video with bounding boxes already rendered.
+    Processing must be completed before playback can begin.
+
+    Args:
+        video_id: Video ID
+
+    Returns:
+        MJPEG stream response
+    """
+    # Check if processor exists
+    if video_id not in active_processors:
+        raise HTTPException(
+            status_code=404,
+            detail="Video processor not found. Upload and process video first."
+        )
+
+    processor = active_processors[video_id]
+
+    # Check if processing is completed
+    if not processor.is_mjpeg_ready():
+        raise HTTPException(
+            status_code=425,  # Too Early
+            detail="Processing not completed yet. Wait for processing to finish."
+        )
+
+    logger.info(f"Starting MJPEG stream for video {video_id}")
+
+    async def generate_mjpeg_frames():
+        """Generate MJPEG frames from completed buffer"""
+        try:
+            # Calculate frame delay based on processing FPS
+            frame_delay = 1.0 / processor.mjpeg_fps
+
+            # Get reference to the frame buffer
+            frame_buffer = processor.get_annotated_frames()
+            total_frames = len(frame_buffer)
+
+            logger.info(f"MJPEG stream ready: {total_frames} frames available")
+
+            # Start playback
+            processor.mjpeg_play()
+
+            # Stream all frames
+            while processor.mjpeg_current_index < total_frames:
+                # Check if still playing (not paused/stopped)
+                if not processor.mjpeg_playing:
+                    await asyncio.sleep(0.1)  # Wait while paused
+                    continue
+
+                # Get current frame
+                frame = frame_buffer[processor.mjpeg_current_index]
+                processor.mjpeg_current_index += 1
+
+                # Encode frame to JPEG
+                encode_params = [cv2.IMWRITE_JPEG_QUALITY, 85]
+                success, buffer = cv2.imencode('.jpg', frame, encode_params)
+
+                if success:
+                    # Yield frame in MJPEG format
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' +
+                           buffer.tobytes() + b'\r\n')
+
+                # Frame rate throttling
+                await asyncio.sleep(frame_delay)
+
+            logger.info(f"MJPEG stream completed for video {video_id}")
+            processor.mjpeg_stop()
+
+        except Exception as e:
+            logger.error(f"Error streaming MJPEG frames: {e}")
+            processor.mjpeg_stop()
+
+    return StreamingResponse(
+        generate_mjpeg_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+
 @router.delete("/{video_id}")
 async def delete_video(video_id: str):
     """
@@ -549,6 +635,58 @@ async def video_websocket_endpoint(websocket: WebSocket, video_id: str):
                 await websocket.send_json({
                     "type": "stats",
                     "data": stats
+                })
+
+            elif message_type == "mjpeg_play":
+                # Start MJPEG playback (after processing is complete)
+                try:
+                    processor.mjpeg_play()
+                    await websocket.send_json({
+                        "type": "mjpeg_playing"
+                    })
+                except RuntimeError as e:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e)
+                    })
+
+            elif message_type == "mjpeg_pause":
+                # Pause MJPEG playback
+                processor.mjpeg_pause()
+                await websocket.send_json({
+                    "type": "mjpeg_paused"
+                })
+
+            elif message_type == "mjpeg_resume":
+                # Resume MJPEG playback
+                try:
+                    processor.mjpeg_resume()
+                    await websocket.send_json({
+                        "type": "mjpeg_resumed"
+                    })
+                except RuntimeError as e:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e)
+                    })
+
+            elif message_type == "mjpeg_stop":
+                # Stop MJPEG playback
+                processor.mjpeg_stop()
+                await websocket.send_json({
+                    "type": "mjpeg_stopped"
+                })
+
+            elif message_type == "get_status":
+                # Get processing and playback status
+                await websocket.send_json({
+                    "type": "status",
+                    "data": {
+                        "processing_completed": processor.processing_completed,
+                        "mjpeg_ready": processor.is_mjpeg_ready(),
+                        "mjpeg_playing": processor.mjpeg_playing,
+                        "total_frames": len(processor.get_annotated_frames())
+                    }
                 })
 
             elif message_type == "ping":

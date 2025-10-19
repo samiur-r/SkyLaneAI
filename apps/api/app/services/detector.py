@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from typing import Any
 import numpy as np
+import cv2
 from ultralytics import YOLO
 from app.core.config import settings
 from app.models.schemas import Detection, DetectionBox
@@ -108,6 +109,76 @@ class YOLODetector:
         processing_time = (time.time() - start_time) * 1000  # Convert to ms
 
         return detections, processing_time
+
+    def render_detections(self, image: np.ndarray, detections: list[Detection]) -> np.ndarray:
+        """
+        Render bounding boxes and labels on image
+
+        Args:
+            image: Input image as numpy array (BGR format)
+            detections: List of detections to render
+
+        Returns:
+            Annotated image
+        """
+        annotated = image.copy()
+
+        # Color mapping for different classes
+        class_colors = {
+            'bird': (68, 68, 239),      # Red (BGR)
+            'drone': (11, 158, 245),    # Amber (BGR)
+            'aircraft': (246, 130, 59),  # Blue (BGR)
+            'person': (129, 185, 16),    # Green (BGR)
+            'car': (246, 92, 139),       # Purple (BGR)
+            'balloon': (153, 72, 236),   # Pink (BGR)
+            'kite': (166, 184, 20),      # Teal (BGR)
+        }
+        default_color = (128, 123, 107)  # Gray (BGR)
+
+        for detection in detections:
+            bbox = detection.bbox
+            x1, y1 = int(bbox.x1), int(bbox.y1)
+            x2, y2 = int(bbox.x2), int(bbox.y2)
+
+            # Get color for this class
+            color = class_colors.get(detection.class_name.lower(), default_color)
+
+            # Draw bounding box
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 3)
+
+            # Prepare label
+            label = f"{detection.class_name} {int(detection.confidence * 100)}%"
+
+            # Get label size
+            (label_w, label_h), baseline = cv2.getTextSize(
+                label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
+            )
+
+            # Position label above box, or below if too close to top
+            label_y = y1 - 10 if y1 > 30 else y2 + label_h + 10
+            label_x = x1
+
+            # Draw label background
+            cv2.rectangle(
+                annotated,
+                (label_x, label_y - label_h - 5),
+                (label_x + label_w + 10, label_y + 5),
+                color,
+                -1
+            )
+
+            # Draw label text
+            cv2.putText(
+                annotated,
+                label,
+                (label_x + 5, label_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (255, 255, 255),
+                2
+            )
+
+        return annotated
 
 
 # Global detector instance

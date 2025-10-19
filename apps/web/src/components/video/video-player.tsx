@@ -54,6 +54,26 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     }, [videoId, API_URL]);
 
     /**
+     * Handle isPlaying prop changes - sync video playback with external state
+     */
+    useEffect(() => {
+      if (!internalRef.current || !videoUrl) return;
+
+      const video = internalRef.current;
+
+      // Auto-play when isPlaying becomes true
+      if (isPlaying && video.paused) {
+        video.play().catch((err) => {
+          console.error('Failed to auto-play video:', err);
+        });
+      }
+      // Auto-pause when isPlaying becomes false
+      else if (!isPlaying && !video.paused) {
+        video.pause();
+      }
+    }, [isPlaying, videoUrl]);
+
+    /**
      * Handle video metadata loaded
      */
     const handleLoadedMetadata = () => {

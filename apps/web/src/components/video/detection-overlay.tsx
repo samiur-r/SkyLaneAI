@@ -25,6 +25,14 @@ export function DetectionOverlay({
 }: DetectionOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
+  const lastDetectionsRef = useRef<NormalizedDetection[]>([]);
+
+  // Clear last detections when detections array is explicitly cleared
+  useEffect(() => {
+    if (detections.length === 0) {
+      lastDetectionsRef.current = [];
+    }
+  }, [detections]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -63,8 +71,16 @@ export function DetectionOverlay({
       const scaleX = frameWidth && frameHeight ? canvas.width / frameWidth : 1;
       const scaleY = frameWidth && frameHeight ? canvas.height / frameHeight : 1;
 
+      // Use current detections if available, otherwise keep showing last detections
+      const detectionsToShow = detections.length > 0 ? detections : lastDetectionsRef.current;
+
+      // Update last detections ref when new detections arrive
+      if (detections.length > 0) {
+        lastDetectionsRef.current = detections;
+      }
+
       // Draw each detection
-      detections.forEach((detection) => {
+      detectionsToShow.forEach((detection) => {
         const { bbox, className, confidence, color } = detection;
 
         // Scale bounding box coordinates

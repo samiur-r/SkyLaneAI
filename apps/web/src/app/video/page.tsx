@@ -10,8 +10,7 @@ import { useVideoUpload } from '@/hooks/use-video-upload';
 import { useVideoStream } from '@/hooks/use-video-stream';
 import { useDetections } from '@/hooks/use-detections';
 import { VideoUpload } from '@/components/video/video-upload';
-import { VideoPlayer } from '@/components/video/video-player';
-import { DetectionOverlay } from '@/components/video/detection-overlay';
+import { MjpegPlayer } from '@/components/video/mjpeg-player';
 import { DetectionStats } from '@/components/video/detection-stats';
 import { DetectionSettings } from '@/components/controls/detection-settings';
 import { Card } from '@/components/ui/card';
@@ -22,10 +21,12 @@ import { Play, Pause, Trash2, Upload as UploadIcon } from 'lucide-react';
 import type { VideoUploadMetadata, StreamSettings } from '@repo/types';
 
 export default function VideoPage() {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [videoMetadata, setVideoMetadata] = useState<VideoUploadMetadata | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingCompleted, setProcessingCompleted] = useState(false);
+  const [isPlayingMjpeg, setIsPlayingMjpeg] = useState(false);
+  const [mjpegKey, setMjpegKey] = useState(0); // Force reload MJPEG stream
   const [streamSettings, setStreamSettings] = useState<StreamSettings>({
     fps: 10,
     skipFrames: true,
@@ -76,6 +77,7 @@ export default function VideoPage() {
     },
     onCompleted: () => {
       setIsProcessing(false);
+      setProcessingCompleted(true);
       console.log('Video processing completed');
     },
     onError: (error) => {
@@ -107,6 +109,9 @@ export default function VideoPage() {
     if (!videoMetadata) return;
 
     try {
+      // Clear previous state
+      clearDetections();
+
       // Connect to WebSocket
       await connect();
 
@@ -122,16 +127,26 @@ export default function VideoPage() {
   };
 
   /**
-   * Handle pause/resume
+   * Handle MJPEG play (after processing completes)
    */
-  const handleTogglePlayback = () => {
-    if (isProcessing) {
-      pause();
-      setIsProcessing(false);
-    } else {
-      resume();
-      setIsProcessing(true);
-    }
+  const handlePlayMjpeg = () => {
+    setIsPlayingMjpeg(true);
+    setMjpegKey(prev => prev + 1); // Force reload MJPEG stream
+  };
+
+  /**
+   * Handle MJPEG pause
+   */
+  const handlePauseMjpeg = () => {
+    setIsPlayingMjpeg(false);
+  };
+
+  /**
+   * Handle MJPEG stop (reset to beginning)
+   */
+  const handleStopMjpeg = () => {
+    setIsPlayingMjpeg(false);
+    setMjpegKey(prev => prev + 1); // Reload stream from beginning
   };
 
   /**
@@ -153,6 +168,8 @@ export default function VideoPage() {
       setVideoMetadata(null);
       setVideoFile(null);
       setIsProcessing(false);
+      setProcessingCompleted(false);
+      setIsPlayingMjpeg(false);
     }
   };
 
@@ -234,27 +251,31 @@ export default function VideoPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Video Player */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Video Container */}
-              <div className="relative aspect-video bg-black rounded-lg overflow-hidden shadow-lg">
-                <VideoPlayer
-                  ref={videoRef}
-                  videoId={videoMetadata.videoId}
-                  isPlaying={isProcessing}
-                  onPlay={() => setIsProcessing(true)}
-                  onPause={() => setIsProcessing(false)}
-                  className="w-full h-full"
-                />
-
-                {/* Detection Overlay */}
-                {videoRef.current && (
-                  <DetectionOverlay
-                    detections={detections}
-                    videoRef={videoRef as React.RefObject<HTMLVideoElement>}
-                    frameWidth={frameWidth}
-                    frameHeight={frameHeight}
-                  />
-                )}
-              </div>
+              {/* MJPEG Video Container with Annotations */}
+              <Card className="p-0 overflow-hidden">
+                <div className="relative aspect-video bg-black">
+                  {processingCompleted && isPlayingMjpeg ? (
+                    <MjpegPlayer
+                      key={mjpegKey}
+                      videoId={videoMetadata.videoId}
+                      className="w-full h-full"
+                      onError={(error) => {
+                        console.error('MJPEG stream error:', error);
+                      }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                      {isProcessing ? (
+                        <p>Processing video... Please wait</p>
+                      ) : processingCompleted ? (
+                        <p>Processing complete! Click Play to watch annotated video</p>
+                      ) : (
+                        <p>Click &quot;Start Processing&quot; to begin</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
 
               {/* Video Info Card */}
               <Card className="p-4">
@@ -326,41 +347,53 @@ export default function VideoPage() {
                   </div>
 
                   {/* Control Buttons */}
-                  <div className="flex gap-2">
-                    {!isConnected ? (
-                      <Button onClick={handleStartProcessing} className="flex-1">
+                  <div className="space-y-2">
+                    {/* Processing Controls */}
+                    {!processingCompleted && (
+                      <Button
+                        onClick={handleStartProcessing}
+                        className="w-full"
+                        disabled={isProcessing}
+                      >
                         <Play className="w-4 h-4 mr-2" />
-                        Start Processing
-                      </Button>
-                    ) : (
-                      <Button onClick={handleTogglePlayback} className="flex-1">
-                        {isProcessing ? (
-                          <>
-                            <Pause className="w-4 h-4 mr-2" />
-                            Pause
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 mr-2" />
-                            Resume
-                          </>
-                        )}
+                        {isProcessing ? 'Processing...' : 'Start Processing'}
                       </Button>
                     )}
 
-                    <Button variant="destructive" onClick={handleDeleteVideo}>
-                      <Trash2 className="w-4 h-4" />
+                    {/* Playback Controls (after processing complete) */}
+                    {processingCompleted && (
+                      <div className="flex gap-2">
+                        {!isPlayingMjpeg ? (
+                          <Button onClick={handlePlayMjpeg} className="flex-1">
+                            <Play className="w-4 h-4 mr-2" />
+                            Play
+                          </Button>
+                        ) : (
+                          <Button onClick={handlePauseMjpeg} className="flex-1">
+                            <Pause className="w-4 h-4 mr-2" />
+                            Pause
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Delete Button */}
+                    <Button variant="destructive" onClick={handleDeleteVideo} className="w-full">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Video
                     </Button>
                   </div>
                 </div>
               </Card>
 
-              {/* Detection Settings */}
-              <DetectionSettings
-                settings={streamSettings}
-                onSettingsChange={handleSettingsChange}
-                disabled={!isConnected}
-              />
+              {/* Detection Settings (only show before processing) */}
+              {!processingCompleted && (
+                <DetectionSettings
+                  settings={streamSettings}
+                  onSettingsChange={handleSettingsChange}
+                  disabled={isProcessing}
+                />
+              )}
             </div>
           </div>
         )}

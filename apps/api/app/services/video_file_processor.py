@@ -4,6 +4,7 @@ import time
 import logging
 from typing import Optional, Callable, Dict, Any
 from pathlib import Path
+from collections import deque
 import cv2
 import numpy as np
 from app.services.detector import detector
@@ -42,6 +43,7 @@ class VideoFileProcessor:
         self.is_paused = False
         self.playback_speed = 1.0
         self.current_frame_number = 0
+        self.processing_completed = False  # Track if processing is done
 
         # Callback for detection results
         self.on_detection_callback: Optional[Callable] = None
@@ -50,6 +52,14 @@ class VideoFileProcessor:
 
         # Processing task
         self.processing_task: Optional[asyncio.Task] = None
+
+        # Frame buffer for MJPEG streaming (stores annotated frames)
+        self.annotated_frames: deque = deque(maxlen=10000)  # Store up to 10k frames
+        self.mjpeg_fps: int = process_fps if process_fps else 10
+
+        # MJPEG playback state (separate from processing)
+        self.mjpeg_playing = False
+        self.mjpeg_current_index = 0
 
         # Statistics
         self.stats = {
@@ -290,7 +300,15 @@ class VideoFileProcessor:
             # Calculate timestamp
             timestamp = frame_number / self.video_metadata["fps"] if self.video_metadata else 0
 
-            # Send detections to frontend via callback
+            # Render detections on frame for MJPEG streaming
+            annotated_frame = await asyncio.to_thread(
+                detector.render_detections, frame, detections
+            )
+
+            # Add to frame buffer
+            self.annotated_frames.append(annotated_frame)
+
+            # Send detections to frontend via callback (for WebSocket)
             if self.on_detection_callback:
                 result = {
                     "frame_number": frame_number,
@@ -330,12 +348,13 @@ class VideoFileProcessor:
     async def _on_video_completed(self):
         """Handle video completion"""
         self.is_playing = False
+        self.processing_completed = True
         self.stats["end_time"] = time.time()
 
         if self.on_completed_callback:
             await self.on_completed_callback()
 
-        logger.info(f"Video processing completed. Stats: {self.stats}")
+        logger.info(f"Video processing completed. Total frames buffered: {len(self.annotated_frames)}")
 
     def update_settings(
         self,
@@ -370,9 +389,51 @@ class VideoFileProcessor:
         """Get video metadata"""
         return self.video_metadata
 
+    def get_annotated_frames(self) -> deque:
+        """Get the buffer of annotated frames for MJPEG streaming"""
+        return self.annotated_frames
+
+    def clear_frame_buffer(self):
+        """Clear the annotated frame buffer to free memory"""
+        self.annotated_frames.clear()
+        self.mjpeg_current_index = 0
+        logger.info("Cleared annotated frame buffer")
+
+    # MJPEG Playback Controls (separate from processing)
+    def mjpeg_play(self):
+        """Start MJPEG playback"""
+        if not self.processing_completed:
+            raise RuntimeError("Cannot play MJPEG stream. Processing not completed yet.")
+        self.mjpeg_playing = True
+        self.mjpeg_current_index = 0
+        logger.info("MJPEG playback started")
+
+    def mjpeg_pause(self):
+        """Pause MJPEG playback"""
+        self.mjpeg_playing = False
+        logger.info("MJPEG playback paused")
+
+    def mjpeg_resume(self):
+        """Resume MJPEG playback"""
+        if not self.processing_completed:
+            raise RuntimeError("Cannot resume MJPEG stream. Processing not completed yet.")
+        self.mjpeg_playing = True
+        logger.info("MJPEG playback resumed")
+
+    def mjpeg_stop(self):
+        """Stop MJPEG playback and reset to beginning"""
+        self.mjpeg_playing = False
+        self.mjpeg_current_index = 0
+        logger.info("MJPEG playback stopped")
+
+    def is_mjpeg_ready(self) -> bool:
+        """Check if MJPEG playback is ready (processing completed)"""
+        return self.processing_completed and len(self.annotated_frames) > 0
+
     async def close(self):
         """Clean up resources"""
         await self.stop_processing()
+        self.clear_frame_buffer()
 
         if self.cap:
             self.cap.release()
