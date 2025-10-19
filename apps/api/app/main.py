@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import router
 from app.api.stream_routes import router as stream_router
-from app.api.video_routes import router as video_router
+from app.api.video_routes import router as video_router, _recover_uploaded_videos
 
 
 @asynccontextmanager
@@ -14,6 +14,11 @@ async def lifespan(app: FastAPI):
     # Startup
     print(f"🚀 {settings.API_TITLE} v{settings.API_VERSION} starting...")
     print(f"📚 API Documentation: http://localhost:8000/docs")
+
+    # Recover uploaded videos from disk
+    print("🔄 Recovering uploaded videos...")
+    await _recover_uploaded_videos()
+    print("✅ Video recovery complete")
 
     yield
 

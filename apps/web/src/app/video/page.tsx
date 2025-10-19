@@ -238,7 +238,7 @@ export default function VideoPage() {
               <div className="relative aspect-video bg-black rounded-lg overflow-hidden shadow-lg">
                 <VideoPlayer
                   ref={videoRef}
-                  videoFile={videoFile}
+                  videoId={videoMetadata.videoId}
                   isPlaying={isProcessing}
                   onPlay={() => setIsProcessing(true)}
                   onPause={() => setIsProcessing(false)}

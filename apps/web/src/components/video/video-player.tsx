@@ -7,13 +7,12 @@
 
 import { useEffect, useRef, forwardRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface VideoPlayerProps {
-  videoFile: File | null;
+  videoId: string | null;
   isPlaying?: boolean;
   onPlay?: () => void;
   onPause?: () => void;
@@ -24,7 +23,7 @@ export interface VideoPlayerProps {
 }
 
 export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
-  ({ videoFile, isPlaying, onPlay, onPause, onSeek, onSpeedChange, onTimeUpdate, className = '' }, ref) => {
+  ({ videoId, isPlaying, onPlay, onPause, onSeek, onSpeedChange, onTimeUpdate, className = '' }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const internalRef = (ref as React.RefObject<HTMLVideoElement>) || videoRef;
 
@@ -33,22 +32,26 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
     /**
-     * Create object URL from video file
+     * Create video URL from backend stream
      */
     useEffect(() => {
-      if (videoFile) {
-        const url = URL.createObjectURL(videoFile);
-        setVideoUrl(url);
+      if (videoId) {
+        const streamUrl = `${API_URL}/api/v1/video/${videoId}/stream`;
+        setVideoUrl(streamUrl);
 
-        // Cleanup on unmount
-        return () => {
-          URL.revokeObjectURL(url);
-        };
+        // Load video metadata
+        setTimeout(() => {
+          if (internalRef.current) {
+            internalRef.current.load();
+          }
+        }, 100);
       } else {
         setVideoUrl(null);
       }
-    }, [videoFile]);
+    }, [videoId, API_URL]);
 
     /**
      * Handle video metadata loaded
@@ -129,7 +132,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    if (!videoFile || !videoUrl) {
+    if (!videoUrl) {
       return (
         <div className={`relative ${className}`}>
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg">
@@ -150,6 +153,11 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           src={videoUrl}
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
+          onError={() => {
+            console.error('Video playback error:', internalRef.current?.error);
+          }}
+          preload="metadata"
+          playsInline
           className="w-full h-full object-contain rounded-lg bg-black"
         />
 

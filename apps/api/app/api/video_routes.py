@@ -2,10 +2,12 @@
 import os
 import uuid
 import logging
+import subprocess
+import asyncio
 from pathlib import Path
 from typing import Dict, Any
-from fastapi import APIRouter, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 import json
 from app.services.video_file_processor import VideoFileProcessor
 from app.core.config import settings
@@ -19,6 +21,45 @@ active_processors: Dict[str, VideoFileProcessor] = {}
 
 # Store uploaded video metadata
 uploaded_videos: Dict[str, Dict[str, Any]] = {}
+
+
+async def _recover_uploaded_videos():
+    """
+    Recover video metadata from existing files in upload directory.
+    This is called on startup to restore state after server restart.
+    """
+    upload_dir = _get_upload_dir()
+
+    for file_path in upload_dir.glob("*.*"):
+        if not _validate_video_file(file_path.name):
+            continue
+
+        # Extract video ID from filename (format: {uuid}.{ext})
+        video_id = file_path.stem
+
+        # Skip if already in memory
+        if video_id in uploaded_videos:
+            continue
+
+        try:
+            # Extract metadata
+            processor = VideoFileProcessor(str(file_path))
+            metadata = await processor.initialize()
+            await processor.close()
+
+            # Store metadata
+            uploaded_videos[video_id] = {
+                "video_id": video_id,
+                "filename": file_path.name,
+                "file_path": str(file_path),
+                "size_mb": _get_file_size_mb(file_path),
+                "metadata": metadata,
+                "uploaded_at": None,
+            }
+
+            logger.info(f"Recovered video metadata: {video_id}")
+        except Exception as e:
+            logger.error(f"Failed to recover metadata for {file_path}: {e}")
 
 
 def _get_upload_dir() -> Path:
@@ -37,6 +78,95 @@ def _validate_video_file(filename: str) -> bool:
 def _get_file_size_mb(file_path: Path) -> float:
     """Get file size in MB"""
     return file_path.stat().st_size / (1024 * 1024)
+
+
+async def _transcode_to_h264(input_path: Path, output_path: Path) -> bool:
+    """
+    Transcode video to H.264 codec for browser compatibility.
+
+    Args:
+        input_path: Path to input video file
+        output_path: Path to output video file
+
+    Returns:
+        True if transcoding successful, False otherwise
+    """
+    try:
+        # FFmpeg command for fast H.264 transcoding
+        cmd = [
+            'ffmpeg',
+            '-i', str(input_path),
+            '-c:v', 'libx264',          # H.264 video codec
+            '-preset', 'fast',           # Fast encoding preset
+            '-crf', '23',                # Constant quality (18-28, lower = better)
+            '-c:a', 'aac',               # AAC audio codec
+            '-b:a', '128k',              # Audio bitrate
+            '-movflags', '+faststart',   # Enable streaming
+            '-y',                        # Overwrite output file
+            str(output_path)
+        ]
+
+        logger.info(f"Transcoding video: {input_path.name} -> {output_path.name}")
+
+        # Run FFmpeg asynchronously
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            logger.error(f"FFmpeg transcoding failed: {stderr.decode()}")
+            return False
+
+        logger.info(f"Transcoding complete: {output_path.name}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Transcoding error: {e}")
+        return False
+
+
+async def _check_codec(file_path: Path) -> str:
+    """
+    Check video codec using ffprobe.
+
+    Args:
+        file_path: Path to video file
+
+    Returns:
+        Codec name (e.g., 'h264', 'mpeg4', 'vp9')
+    """
+    try:
+        cmd = [
+            'ffprobe',
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=codec_name',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            str(file_path)
+        ]
+
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if process.returncode == 0:
+            codec = stdout.decode().strip()
+            return codec
+        else:
+            logger.warning(f"ffprobe failed: {stderr.decode()}")
+            return 'unknown'
+
+    except Exception as e:
+        logger.error(f"Codec check error: {e}")
+        return 'unknown'
 
 
 @router.post("/upload")
@@ -84,13 +214,40 @@ async def upload_video(file: UploadFile = File(...)):
                 detail=f"File too large. Max size: {settings.VIDEO_MAX_SIZE_MB}MB"
             )
 
+        # Check video codec
+        codec = await _check_codec(file_path)
+        logger.info(f"Detected codec: {codec}")
+
+        # Transcode if not H.264
+        final_file_path = file_path
+        if codec not in ['h264', 'hevc']:  # hevc (H.265) is also supported by most browsers
+            logger.info(f"Video codec {codec} not browser-compatible, transcoding to H.264...")
+
+            # Create transcoded file path
+            transcoded_path = upload_dir / f"{video_id}_transcoded.mp4"
+
+            # Transcode to H.264
+            transcode_success = await _transcode_to_h264(file_path, transcoded_path)
+
+            if not transcode_success:
+                file_path.unlink()  # Delete original
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to transcode video to browser-compatible format"
+                )
+
+            # Delete original and use transcoded file
+            file_path.unlink()
+            final_file_path = transcoded_path
+            logger.info(f"Transcoding successful, using: {final_file_path.name}")
+
         # Initialize video processor to extract metadata
-        processor = VideoFileProcessor(str(file_path))
+        processor = VideoFileProcessor(str(final_file_path))
         try:
             metadata = await processor.initialize()
         except Exception as e:
             logger.error(f"Error extracting metadata: {e}")
-            file_path.unlink()  # Delete file
+            final_file_path.unlink()  # Delete file
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid video file: {str(e)}"
@@ -102,10 +259,11 @@ async def upload_video(file: UploadFile = File(...)):
         video_data = {
             "video_id": video_id,
             "filename": file.filename,
-            "file_path": str(file_path),
-            "size_mb": file_size_mb,
+            "file_path": str(final_file_path),
+            "size_mb": _get_file_size_mb(final_file_path),
             "metadata": metadata,
-            "uploaded_at": None  # Will be set by proper datetime
+            "uploaded_at": None,  # Will be set by proper datetime
+            "transcoded": codec not in ['h264', 'hevc']
         }
 
         uploaded_videos[video_id] = video_data
@@ -159,6 +317,51 @@ async def get_video_metadata(video_id: str):
         "size_mb": video_data["size_mb"],
         "codec": metadata["codec"]
     }
+
+
+@router.get("/{video_id}/stream")
+async def stream_video(video_id: str, request: Request):
+    """
+    Stream video file with range support for seeking
+
+    Args:
+        video_id: Video ID
+        request: HTTP request (to get Range header)
+
+    Returns:
+        Video file stream
+    """
+    if video_id not in uploaded_videos:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    video_data = uploaded_videos[video_id]
+    file_path = Path(video_data["file_path"])
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    # Detect media type from file extension
+    ext = file_path.suffix.lower()
+    media_type_map = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.ogg': 'video/ogg',
+        '.avi': 'video/x-msvideo',
+        '.mov': 'video/quicktime',
+        '.mkv': 'video/x-matroska',
+    }
+    media_type = media_type_map.get(ext, 'video/mp4')
+
+    # Return file with proper headers for video streaming
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": f'inline; filename="{video_data["filename"]}"',
+            "Cache-Control": "no-cache",
+        }
+    )
 
 
 @router.delete("/{video_id}")
