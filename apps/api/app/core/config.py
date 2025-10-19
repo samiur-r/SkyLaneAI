@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     MAX_FRAME_QUEUE_SIZE: int = 30  # Maximum frames in processing queue
     ENABLE_FRAME_SKIPPING: bool = True  # Skip frames if processing is slow
 
+    # Video Upload Settings
+    VIDEO_UPLOAD_DIR: str = "temp/uploads"  # Directory for uploaded videos
+    VIDEO_MAX_SIZE_MB: int = 100  # Maximum video file size in MB
+    VIDEO_ALLOWED_FORMATS: list[str] = [".mp4", ".avi", ".mov", ".mkv"]  # Allowed video formats
+    VIDEO_CLEANUP_HOURS: int = 24  # Auto-delete videos after N hours
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

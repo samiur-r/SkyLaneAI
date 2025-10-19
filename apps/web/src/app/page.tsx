@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Video, Play } from "lucide-react";
+import { Video, Play, Upload } from "lucide-react";
 
 export default function Home() {
   return (
@@ -22,11 +22,17 @@ export default function Home() {
           Real-time detection of birds, drones, and airborne hazards using
           state-of-the-art YOLOv11 technology
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center flex-wrap">
           <Link href="/stream">
             <Button size="lg">
               <Play className="w-5 h-5 mr-2" />
               Start Live Detection
+            </Button>
+          </Link>
+          <Link href="/video">
+            <Button size="lg" variant="outline">
+              <Upload className="w-5 h-5 mr-2" />
+              Upload Video
             </Button>
           </Link>
           <Button size="lg" variant="outline">
@@ -37,7 +43,7 @@ export default function Home() {
       </section>
 
       {/* Features Grid */}
-      <section className="grid md:grid-cols-3 gap-6 mb-16">
+      <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
         <Card>
           <CardHeader>
             <CardTitle>Real-time Detection</CardTitle>
@@ -60,6 +66,19 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">
               Stream live video from cameras with real-time object detection
               overlays and annotations.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Video Upload Analysis</CardTitle>
+            <CardDescription>Process pre-recorded videos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Upload and analyze recorded videos with frame-by-frame detection
+              and playback controls.
             </p>
           </CardContent>
         </Card>
