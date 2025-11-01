@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from app.services.detector import detector
 from app.models.schemas import Detection
+from app.agents.context_agent import context_agent
 
 logger = logging.getLogger(__name__)
 
@@ -300,6 +301,16 @@ class VideoFileProcessor:
             # Calculate timestamp
             timestamp = frame_number / self.video_metadata["fps"] if self.video_metadata else 0
 
+            # Enrich detections with context (rule-based, very fast)
+            enriched_contexts = []
+            if detections:
+                enriched_contexts = await asyncio.to_thread(
+                    context_agent.enrich_batch,
+                    detections,
+                    frame.shape[1],  # width
+                    frame.shape[0]   # height
+                )
+
             # Render detections on frame for MJPEG streaming
             annotated_frame = await asyncio.to_thread(
                 detector.render_detections, frame, detections
@@ -310,10 +321,18 @@ class VideoFileProcessor:
 
             # Send detections to frontend via callback (for WebSocket)
             if self.on_detection_callback:
+                # Combine detections with their enriched contexts
+                enriched_detections = []
+                for i, det in enumerate(detections):
+                    det_dict = det.model_dump()
+                    if i < len(enriched_contexts):
+                        det_dict["context"] = enriched_contexts[i].model_dump()
+                    enriched_detections.append(det_dict)
+
                 result = {
                     "frame_number": frame_number,
                     "timestamp": timestamp,
-                    "detections": [det.model_dump() for det in detections],
+                    "detections": enriched_detections,
                     "processing_time_ms": processing_time,
                     "frameWidth": frame.shape[1],
                     "frameHeight": frame.shape[0],

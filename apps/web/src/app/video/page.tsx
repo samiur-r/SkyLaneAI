@@ -12,6 +12,7 @@ import { useDetections } from '@/hooks/use-detections';
 import { VideoUpload } from '@/components/video/video-upload';
 import { MjpegPlayer } from '@/components/video/mjpeg-player';
 import { DetectionStats } from '@/components/video/detection-stats';
+import { DetectionContextPanel } from '@/components/video/detection-context-panel';
 import { DetectionSettings } from '@/components/controls/detection-settings';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -324,6 +325,9 @@ export default function VideoPage() {
                 processingTimeMs={processingTimeMs}
                 latestFrame={latestFrame}
               />
+
+              {/* Detection Context Panel */}
+              <DetectionContextPanel detections={detections} />
             </div>
 
             {/* Right Column - Controls */}

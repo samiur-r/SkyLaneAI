@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.api.routes import router
 from app.api.stream_routes import router as stream_router
 from app.api.video_routes import router as video_router, _recover_uploaded_videos
+from app.api.alert_routes import router as alert_router
 
 
 @asynccontextmanager
@@ -49,6 +50,7 @@ app.add_middleware(
 app.include_router(router, prefix="/api/v1", tags=["api"])
 app.include_router(stream_router, prefix="/api/v1/stream", tags=["stream"])
 app.include_router(video_router, prefix="/api/v1/video", tags=["video"])
+app.include_router(alert_router, prefix="/api/v1/alerts", tags=["alerts"])
 
 
 @app.get("/")

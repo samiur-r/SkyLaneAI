@@ -111,6 +111,13 @@ export function useDetections(
           timestamp: data.timestamp,
           frameNumber: data.frameNumber,
           color: getColorForClass(detection.class_name),
+          // Include enriched context from Context Enrichment Agent
+          context: detection.context ? {
+            estimated_size: detection.context.estimated_size,
+            bbox_area_pixels: detection.context.bbox_area_pixels,
+            screen_position: detection.context.screen_position,
+            threat_level_raw: detection.context.threat_level_raw,
+          } : undefined,
         }));
 
       setDetections(normalizedDetections);
