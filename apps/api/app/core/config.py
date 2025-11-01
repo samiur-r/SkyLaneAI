@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     VIDEO_ALLOWED_FORMATS: list[str] = [".mp4", ".avi", ".mov", ".mkv"]  # Allowed video formats
     VIDEO_CLEANUP_HOURS: int = 24  # Auto-delete videos after N hours
 
+    # OpenAI API Settings
+    OPENAI_API_KEY: str = ""  # OpenAI API key for advanced features
+    OPENAI_MODEL: str = "gpt-5-nano"  # Model for alert generation
+    ALERT_GENERATION_TIMEOUT: int = 5  # Timeout in seconds
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
