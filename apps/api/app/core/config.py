@@ -25,6 +25,19 @@ class Settings(BaseSettings):
     CONFIDENCE_THRESHOLD: float = 0.25
     IOU_THRESHOLD: float = 0.45
 
+    # Sky Hazard Detection Settings
+    # Only detect these classes (sky hazards). Set to empty list to detect all classes.
+    # COCO classes that might appear in sky: bird, kite, airplane (aircraft)
+    # Note: COCO doesn't have "drone" or "balloon" as separate classes, but:
+    # - Drones may be detected as "airplane" or "kite"
+    # - Balloons may be detected as "kite" or "sports ball"
+    SKY_HAZARD_CLASSES: list[str] = [
+        "bird",
+        "kite",
+        "airplane",
+        "sports ball"  # May detect balloons
+    ]
+
     # Video Streaming Settings
     DEFAULT_PROCESS_FPS: int = 10  # Process 10 frames per second
     MAX_FRAME_QUEUE_SIZE: int = 30  # Maximum frames in processing queue

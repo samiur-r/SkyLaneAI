@@ -83,8 +83,10 @@ class YOLODetector:
             verbose=False
         )
 
-        # Parse results
+        # Parse results and filter by sky hazard classes
         detections = []
+        sky_hazard_classes = settings.SKY_HAZARD_CLASSES
+
         for result in results:
             boxes = result.boxes
             for i in range(len(boxes)):
@@ -92,6 +94,11 @@ class YOLODetector:
                 conf = float(boxes.conf[i].cpu().numpy())
                 cls_id = int(boxes.cls[i].cpu().numpy())
                 cls_name = result.names[cls_id]
+
+                # Filter: Only include sky hazard classes
+                # If SKY_HAZARD_CLASSES is empty, include all detections
+                if sky_hazard_classes and cls_name not in sky_hazard_classes:
+                    continue
 
                 detection = Detection(
                     class_name=cls_name,
