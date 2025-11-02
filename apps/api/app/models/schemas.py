@@ -58,24 +58,23 @@ class CraftedMessage(BaseModel):
 
 class ActionRecommendation(BaseModel):
     """Recommended actions for pilot"""
-    immediate_actions: list[str] = Field(default_factory=list, description="Actions to take immediately")
-    monitoring_actions: list[str] = Field(default_factory=list, description="What to monitor")
-    contingency_actions: list[str] = Field(default_factory=list, description="Actions if situation worsens")
+    primary_action: str = Field(..., description="Primary immediate action")
+    secondary_action: str = Field(..., description="Secondary or follow-up action")
+    reasoning: str = Field(..., description="Reasoning behind the recommendations")
+    urgency: str = Field(..., description="Urgency level: immediate, urgent, caution, advisory")
 
 
 class PriorityScore(BaseModel):
     """Priority level and scoring"""
-    level: str = Field(..., description="Priority level: green, yellow, orange, red")
-    score: int = Field(..., ge=1, le=10, description="Numeric priority score 1-10")
-    reasoning: str = Field(..., description="Justification for priority level")
+    overall_score: float = Field(..., ge=0, le=100, description="Overall priority score 0-100")
+    priority_level: str = Field(..., description="Priority level: low, medium, high, critical")
+    factors: dict = Field(default_factory=dict, description="Scoring factors breakdown")
 
 
 class NaturalLanguageAlert(BaseModel):
     """Complete natural language alert"""
-    alert_id: str = Field(..., description="Unique alert identifier")
     detection: Detection = Field(..., description="Original detection data")
     context: EnrichedContext = Field(..., description="Enriched context")
     message: CraftedMessage = Field(..., description="Crafted message")
-    actions: ActionRecommendation = Field(..., description="Recommended actions")
+    action: ActionRecommendation = Field(..., description="Recommended actions")
     priority: PriorityScore = Field(..., description="Priority assessment")
-    generated_at: datetime = Field(default_factory=datetime.utcnow, description="Alert generation timestamp")

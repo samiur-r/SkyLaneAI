@@ -77,12 +77,20 @@ Guidelines:
 - Do NOT include emojis (they will be added separately)
 - Keep total message under 200 words"""
 
+            # Build optional timestamp/frame info
+            time_info = ""
+            if detection.timestamp is not None and detection.frame_number is not None:
+                time_info = f"\n- Timestamp: {detection.timestamp:.1f}s (Frame {detection.frame_number})"
+            elif detection.timestamp is not None:
+                time_info = f"\n- Timestamp: {detection.timestamp:.1f}s"
+            elif detection.frame_number is not None:
+                time_info = f"\n- Frame: {detection.frame_number}"
+
             user_prompt = f"""Generate a safety alert message for this detection:
 
 Object Details:
 - Type: {detection.class_name}
-- Confidence: {detection.confidence:.0%}
-- Timestamp: {detection.timestamp:.1f}s (Frame {detection.frame_number})
+- Confidence: {detection.confidence:.0%}{time_info}
 
 Contextual Analysis:
 - Size Category: {context.estimated_size}
@@ -185,11 +193,13 @@ Keep it brief and actionable. No fluff."""
         title = f"{detection.class_name.title()} Detection"
         emoji = self._get_emoji(detection.class_name)
 
+        # Build detection details with optional timestamp
+        timestamp_str = f"- Detected at {detection.timestamp:.1f} seconds\n" if detection.timestamp is not None else ""
+
         body = f"""# {title}
 
 **Detection Details:**
-- Detected at {detection.timestamp:.1f} seconds
-- Position: {context.screen_position}
+{timestamp_str}- Position: {context.screen_position}
 - Confidence: {detection.confidence:.0%}
 
 **Threat Assessment:**
@@ -200,7 +210,7 @@ Keep it brief and actionable. No fluff."""
 Monitor this hazard and maintain safe distance."""
 
         sections = {
-            "detection_details": f"Detected at {detection.timestamp:.1f}s",
+            "detection_details": f"Confidence: {detection.confidence:.0%}",
             "threat_assessment": f"Threat level: {context.threat_level_raw}"
         }
 

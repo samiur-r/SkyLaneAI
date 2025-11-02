@@ -5,22 +5,42 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Target, MapPin, Ruler } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, Target, MapPin, Ruler, FileText, Loader2 } from 'lucide-react';
 import type { NormalizedDetection } from '@repo/types';
+import { AlertDetailModal } from './alert-detail-modal';
 
 export interface DetectionContextPanelProps {
   detections: NormalizedDetection[];
+  videoWidth?: number;
+  videoHeight?: number;
   className?: string;
 }
 
 export function DetectionContextPanel({
   detections,
+  videoWidth,
+  videoHeight,
   className = '',
 }: DetectionContextPanelProps) {
+  const [selectedDetection, setSelectedDetection] = useState<NormalizedDetection | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // Filter detections that have context
   const detectionsWithContext = detections.filter(d => d.context);
+
+  const handleViewDetails = (detection: NormalizedDetection) => {
+    setSelectedDetection(detection);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedDetection(null);
+  };
 
   if (detectionsWithContext.length === 0) {
     return (
@@ -156,11 +176,33 @@ export function DetectionContextPanel({
                     </div>
                   </div>
                 </div>
+
+                {/* View Details Button */}
+                <div className="mt-3 pt-3 border-t">
+                  <Button
+                    onClick={() => handleViewDetails(detection)}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    View Detailed Alert
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
       </CardContent>
+
+      {/* Alert Detail Modal */}
+      <AlertDetailModal
+        detection={selectedDetection}
+        videoWidth={videoWidth}
+        videoHeight={videoHeight}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </Card>
   );
 }

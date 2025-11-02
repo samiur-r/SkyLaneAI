@@ -2,14 +2,12 @@
 
 from .context_agent import ContextEnrichmentAgent
 from .message_agent import MessageCraftingAgent
-
-# Other agents will be added in Phase 2
-# from .action_agent import ActionRecommendationAgent
-# from .priority_agent import PriorityAgent
+from .action_agent import ActionRecommendationAgent
+from .priority_agent import PriorityScoringAgent
 
 __all__ = [
     "ContextEnrichmentAgent",
     "MessageCraftingAgent",
-    # "ActionRecommendationAgent",
-    # "PriorityAgent",
+    "ActionRecommendationAgent",
+    "PriorityScoringAgent",
 ]

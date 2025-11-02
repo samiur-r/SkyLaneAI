@@ -13,6 +13,7 @@ import { VideoUpload } from '@/components/video/video-upload';
 import { MjpegPlayer } from '@/components/video/mjpeg-player';
 import { DetectionStats } from '@/components/video/detection-stats';
 import { DetectionContextPanel } from '@/components/video/detection-context-panel';
+import { DetectionDebug } from '@/components/video/detection-debug';
 import { DetectionSettings } from '@/components/controls/detection-settings';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -327,7 +328,11 @@ export default function VideoPage() {
               />
 
               {/* Detection Context Panel */}
-              <DetectionContextPanel detections={detections} />
+              <DetectionContextPanel
+                detections={detections}
+                videoWidth={videoMetadata.width}
+                videoHeight={videoMetadata.height}
+              />
             </div>
 
             {/* Right Column - Controls */}
