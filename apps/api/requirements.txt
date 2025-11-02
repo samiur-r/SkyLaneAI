@@ -12,6 +12,12 @@ opencv-python==4.10.0.84
 numpy>=1.23.0,<2.0.0
 pillow==11.0.0
 
+# DETR (Detection Transformer) - Meta AI
+transformers==4.44.0
+torch>=2.2.0  # Required for transformers (compatible with M1/M2 Mac)
+torchvision>=0.17.0  # Required for DETR
+timm==0.9.12  # Required for some transformer models
+
 # WebRTC and WebSocket
 aiortc==1.9.0  # Requires ffmpeg and pkg-config
 aiohttp==3.13.1

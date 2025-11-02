@@ -38,7 +38,8 @@ class Settings(BaseSettings):
 
     # Model Settings
     MODELS_DIR: str = "models"  # Directory to store model files
-    MODEL_NAME: str = "yolo11l.pt"  # Model filename (large model for better accuracy)
+    MODEL_TYPE: str = "detr"  # Model type: "yolo" or "detr"
+    MODEL_NAME: str = "yolo11l.pt"  # YOLO model filename (used if MODEL_TYPE=yolo)
     MODEL_CACHE_ENABLED: bool = True  # Cache models to avoid re-downloading
     MODEL_DEVICE: str = "cpu"  # Device to run model on: "cpu", "cuda", or "cuda:0"
     CONFIDENCE_THRESHOLD: float = 0.25

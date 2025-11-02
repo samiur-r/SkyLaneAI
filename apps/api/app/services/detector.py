@@ -1,11 +1,10 @@
-"""YOLO detection service"""
+"""Detection service - supports YOLO and DETR models"""
 import os
 import time
 from pathlib import Path
 from typing import Any
 import numpy as np
 import cv2
-from ultralytics import YOLO
 from app.core.config import settings
 from app.models.schemas import Detection, DetectionBox
 
@@ -201,5 +200,12 @@ class YOLODetector:
         return annotated
 
 
-# Global detector instance
-detector = YOLODetector()
+# Select and initialize detector based on config
+if settings.MODEL_TYPE.lower() == "detr":
+    print(f"✓ Using DETR (Detection Transformer) model")
+    from app.services.detr_detector import detr_detector
+    detector = detr_detector
+else:
+    print(f"✓ Using YOLO model: {settings.MODEL_NAME}")
+    from ultralytics import YOLO
+    detector = YOLODetector()
