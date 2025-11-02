@@ -1,4 +1,6 @@
 """Application configuration"""
+import json
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,7 +13,24 @@ class Settings(BaseSettings):
     API_DESCRIPTION: str = "Sky Hazard Detection API for Flying Taxis"
 
     # CORS Settings
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "https://00ddcee62d4f.ngrok-free.app"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://sky-lane-ai-web.vercel.app"
+    ]
+
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from JSON string or return list as-is"""
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                return parsed if isinstance(parsed, list) else [parsed]
+            except json.JSONDecodeError:
+                # If it's a comma-separated string
+                return [origin.strip() for origin in v.split(',')]
+        return v
 
     # File Upload Settings
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
