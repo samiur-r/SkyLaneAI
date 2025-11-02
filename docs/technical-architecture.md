@@ -1,6 +1,6 @@
 # SkyLaneAI v2 - Technical Architecture
 
-**Last Updated**: 2025-10-19
+**Last Updated**: 2025-11-02
 
 ---
 
@@ -17,6 +17,8 @@
 9. [API Reference](#api-reference)
 10. [Configuration](#configuration)
 11. [Performance Optimization](#performance-optimization)
+12. [Video Upload and Processing](#video-upload-and-processing)
+13. [AI-Powered Alert Generation System](#ai-powered-alert-generation-system)
 
 ---
 
@@ -2382,4 +2384,558 @@ The video upload feature has been redesigned to **separate processing from playb
 
 ---
 
-*Last updated: 2025-10-19*
+## AI-Powered Alert Generation System
+
+### Overview
+
+SkyLaneAI v2 features a sophisticated **4-agent alert generation system** that transforms raw YOLOv11 detections into natural language alerts with actionable recommendations. The system generates **one intelligent alert per second** of video, dramatically improving user experience and efficiency.
+
+### Problem & Solution
+
+**Before (Per-Frame Alerts)**:
+- YOLOv11 detects at 10 FPS = 10 detections per second
+- Same object detected 10 times = 10 redundant alerts
+- 5-second video = 50 potential manual clicks required ❌
+- Overwhelming for users, high cognitive load
+
+**After (Time-Based Alerts)** ✅:
+- System automatically selects BEST detection per second
+- 4 AI agents generate 1 comprehensive alert per second
+- 5-second video = 5 automatic alerts displayed in timeline
+- Zero user clicks required, seamless experience
+
+### Architecture: 4-Agent Pipeline
+
+The alert generation system uses **4 specialized AI agents** working in sequence:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│               4-AGENT ALERT PIPELINE                         │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐
+│  YOLO Detection  │ → Raw detection: class, bbox, confidence
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│  AGENT 1: Context Enrichment Agent                           │
+│  - Analyzes bounding box size (small/medium/large)           │
+│  - Determines screen position (center/left/right/etc)        │
+│  - Calculates bbox area in pixels                            │
+│  - Assesses threat level (low/moderate/high/critical)        │
+│  Output: EnrichedContext                                     │
+└────────┬─────────────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│  AGENT 2: Message Agent                                      │
+│  - Crafts natural language message                           │
+│  - Generates emoji for visual impact (🦅, 🚁, ⚠️)            │
+│  - Creates title and detailed body                           │
+│  - Structures information in sections                        │
+│  Output: CraftedMessage                                      │
+└────────┬─────────────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│  AGENT 3: Action Agent                                       │
+│  - Recommends primary action (immediate response)            │
+│  - Suggests secondary action (follow-up)                     │
+│  - Provides reasoning for recommendations                    │
+│  - Assigns urgency level (immediate/urgent/caution/advisory) │
+│  Output: ActionRecommendation                                │
+└────────┬─────────────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│  AGENT 4: Priority Agent                                     │
+│  - Calculates overall priority score (0-100)                 │
+│  - Determines priority level (critical/high/medium/low)      │
+│  - Breaks down factors: threat, confidence, size, urgency    │
+│  - Provides weighted scoring for each factor                 │
+│  Output: PriorityAssessment                                  │
+└────────┬─────────────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Complete NaturalLanguageAlert                               │
+│  {                                                            │
+│    detection: {...},                                          │
+│    context: {...},                                            │
+│    message: {title, emoji, body, sections},                  │
+│    action: {primary, secondary, reasoning, urgency},         │
+│    priority: {score, level, factors}                         │
+│  }                                                            │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### Agent Implementation Details
+
+#### Agent 1: Context Enrichment Agent
+**File**: `apps/api/app/agents/context_agent.py`
+
+**Input**: Raw YOLOv11 detection
+```python
+{
+  "class_name": "bird",
+  "confidence": 0.87,
+  "bbox": {"x1": 100, "y1": 200, "x2": 300, "y2": 400}
+}
+```
+
+**Output**: Enriched context
+```python
+{
+  "estimated_size": "medium",        # small/medium/large
+  "bbox_area_pixels": 40000,
+  "screen_position": "center-right", # 9 positions
+  "threat_level_raw": "high"         # low/moderate/high/critical
+}
+```
+
+**Logic**:
+- Size: Based on bbox area % of frame
+- Position: Divides frame into 3x3 grid
+- Threat: Combines size + confidence + class type
+
+---
+
+#### Agent 2: Message Agent
+**File**: `apps/api/app/agents/message_agent.py`
+
+**Uses**: Anthropic Claude API (claude-3-5-sonnet-20241022)
+
+**Input**: Detection + EnrichedContext
+
+**Output**: Natural language message
+```python
+{
+  "title": "Medium Bird Detected - Center Right",
+  "emoji": "🦅",
+  "body": "A **medium-sized bird** has been detected in the **center-right** area...",
+  "sections": {
+    "detection": "Bird at 87% confidence",
+    "location": "Center-right, 40,000 px²",
+    "assessment": "High threat due to size and position"
+  }
+}
+```
+
+**Prompt Engineering**:
+- System prompt defines aviation safety context
+- Structured output format (JSON schema)
+- Emphasis on clarity and actionability
+
+---
+
+#### Agent 3: Action Agent
+**File**: `apps/api/app/agents/action_agent.py`
+
+**Uses**: Anthropic Claude API
+
+**Input**: Detection + EnrichedContext
+
+**Output**: Action recommendations
+```python
+{
+  "primary_action": "Maintain increased vigilance and prepare for evasive maneuvers",
+  "secondary_action": "Monitor bird's trajectory and alert air traffic control if necessary",
+  "reasoning": "Medium bird at high confidence warrants elevated caution",
+  "urgency": "urgent"  # immediate/urgent/caution/advisory
+}
+```
+
+**Decision Matrix**:
+| Threat Level | Confidence | Urgency |
+|--------------|------------|---------|
+| Critical | >0.7 | Immediate |
+| High | >0.5 | Urgent |
+| Moderate | >0.3 | Caution |
+| Low | Any | Advisory |
+
+---
+
+#### Agent 4: Priority Agent
+**File**: `apps/api/app/agents/priority_agent.py`
+
+**Uses**: Anthropic Claude API
+
+**Input**: Detection + EnrichedContext + Message + Action
+
+**Output**: Priority assessment
+```python
+{
+  "overall_score": 78.5,  # 0-100 scale
+  "priority_level": "high",  # critical/high/medium/low
+  "factors": {
+    "threat_level": {"value": "high", "score": 90, "weight": 0.4},
+    "confidence": {"value": 0.87, "score": 87, "weight": 0.3},
+    "size_impact": {"value": "medium", "score": 70, "weight": 0.2},
+    "urgency": {"value": "urgent", "score": 80, "weight": 0.1}
+  }
+}
+```
+
+**Scoring Formula**:
+```python
+overall_score = (
+    threat_score × 0.4 +
+    confidence × 100 × 0.3 +
+    size_score × 0.2 +
+    urgency_score × 0.1
+)
+```
+
+---
+
+### Time-Based Alert Generation
+
+#### Processing Flow
+
+**Backend** (`apps/api/app/services/video_file_processor.py`):
+
+```python
+class VideoFileProcessor:
+    # Time-based alert state
+    enable_time_based_alerts = True
+    current_second = 0
+    detections_in_current_second = []  # Buffer for detections
+
+    async def _process_frame(self, frame):
+        # 1. Run YOLO detection
+        detections = await detector.detect(frame)
+
+        # 2. Enrich context (Agent 1)
+        contexts = [context_agent.enrich(d) for d in detections]
+
+        # 3. Calculate video second
+        video_second = int(timestamp)
+
+        # 4. Store in buffer for current second
+        for det, ctx in zip(detections, contexts):
+            self.detections_in_current_second.append((det, ctx, width, height))
+
+        # 5. When second changes, generate alert
+        if video_second > self.current_second:
+            await self._generate_alert_for_second(self.current_second)
+            self.current_second = video_second
+            self.detections_in_current_second.clear()
+
+    async def _generate_alert_for_second(self, second):
+        # 1. Select BEST detection from buffer
+        best_detection, best_context = self._select_best_detection()
+
+        # 2. Run all 4 agents
+        alert = await alert_workflow.generate_complete_alert(
+            detection=best_detection,
+            image_width=width,
+            image_height=height
+        )
+
+        # 3. Send to frontend via WebSocket
+        await self.on_alert_callback({
+            "second": second,
+            "timestamp": float(second),
+            "alert": {
+                "detection": alert.detection.model_dump(),
+                "context": alert.context.model_dump(),
+                "message": alert.message.model_dump(),
+                "action": alert.action.model_dump(),
+                "priority": alert.priority.model_dump()
+            }
+        })
+```
+
+#### Best Detection Selection
+
+**Algorithm**: Prioritize most critical detection per second
+
+```python
+def _select_best_detection(self):
+    """
+    Priority score = (threat_level × 0.5) +
+                     (confidence × 0.3) +
+                     (size × 0.2)
+
+    Threat scores: critical=100, high=75, moderate=50, low=25
+    """
+    best_score = -1
+    best_item = None
+
+    for det, ctx, width, height in self.detections_in_current_second:
+        # Calculate priority
+        threat_score = {"critical": 100, "high": 75, "moderate": 50, "low": 25}[ctx.threat_level_raw]
+        confidence_score = det.confidence * 100
+        size_score = min((ctx.bbox_area_pixels / (width * height)) * 100 * 10, 100)
+
+        priority = (
+            threat_score * 0.5 +
+            confidence_score * 0.3 +
+            size_score * 0.2
+        )
+
+        if priority > best_score:
+            best_score = priority
+            best_item = (det, ctx, width, height)
+
+    return best_item
+```
+
+---
+
+### Frontend Components
+
+#### 1. Alert Timeline Component
+**File**: `apps/web/src/components/video/alert-timeline.tsx`
+
+**Features**:
+- Scrollable timeline with all alerts (one per second)
+- Color-coded by priority (critical=red, high=orange, medium=yellow, low=blue)
+- Shows timestamp, emoji, title, priority score
+- Expandable details (inline, no modal)
+- "Jump to Time" button for video seeking
+- Highlights current alert based on playback position
+
+**Inline Expandable Details** (NEW):
+When user clicks "View Details", the alert expands inline to show:
+- Priority Analysis with score breakdown
+- Detection Context (size, position, area, threat level)
+- Recommended Actions (primary/secondary with urgency badge)
+- Full Message body with formatted text
+
+**Visual Design**:
+```
+┌─────────────────────────────────────────────────────────┐
+│ ⏰ Alert Timeline                           [5 alerts]  │
+├─────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 🦅 00:01 [LOW] Small bird detected        Score: 35 │ │
+│ │ Maintain normal vigilance and continue observation  │ │
+│ │ [Jump to Time] [View Details ▼]                     │ │
+│ └─────────────────────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 🚁 00:03 [HIGH] Large drone approaching  Score: 78  │ │  ← CURRENT
+│ │ Prepare for evasive maneuvers immediately           │ │
+│ │ [Jump to Time] [Hide Details ▲]                     │ │
+│ │                                                      │ │
+│ │ 📊 Priority Analysis: 78.5                          │ │
+│ │   Threat Level: high (90) × 40%                     │ │
+│ │   Confidence: 87% × 30%                             │ │
+│ │                                                      │ │
+│ │ 🎯 Detection Context                                │ │
+│ │   Size: large, Position: center-right               │ │
+│ │   Area: 120,000 px², Threat: high                   │ │
+│ │                                                      │ │
+│ │ ⚡ Recommended Actions [URGENT]                     │ │
+│ │   PRIMARY: Prepare evasive maneuvers                │ │
+│ │   SECONDARY: Alert air traffic control              │ │
+│ │                                                      │ │
+│ │ 📄 Full Message: A large drone has been...         │ │
+│ └─────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### 2. useTimeBasedAlerts Hook
+**File**: `apps/web/src/hooks/use-time-based-alerts.ts`
+
+**API**:
+```typescript
+export function useTimeBasedAlerts() {
+  const [alerts, setAlerts] = useState<TimeBasedAlert[]>([]);
+
+  // Add new alert from WebSocket
+  const addAlert = (message: WSTimeBasedAlertMessage) => {
+    const alert: TimeBasedAlert = {
+      second: message.data.second,
+      timestamp: message.data.timestamp,
+      priorityLevel: message.data.alert.priority.priority_level,
+      priorityScore: message.data.alert.priority.overall_score,
+      title: message.data.alert.message.title,
+      emoji: message.data.alert.message.emoji,
+      hazardType: message.data.alert.detection.class_name,
+      primaryAction: message.data.alert.action.primary_action,
+      urgency: message.data.alert.action.urgency,
+      fullAlert: message.data.alert
+    };
+
+    setAlerts(prev => [...prev, alert].sort((a, b) => a.timestamp - b.timestamp));
+  };
+
+  // Clear all alerts
+  const clearAlerts = () => setAlerts([]);
+
+  // Get alert at specific timestamp
+  const getAlertAtTimestamp = (timestamp: number) => {
+    const second = Math.floor(timestamp);
+    return alerts.find(a => a.second === second);
+  };
+
+  // Get statistics
+  const getStatistics = () => {
+    return {
+      totalAlerts: alerts.length,
+      bySeverity: countBySeverity(alerts),
+      byUrgency: countByUrgency(alerts),
+      averageScore: calculateAverageScore(alerts),
+      topAlert: findTopAlert(alerts)
+    };
+  };
+
+  return { alerts, addAlert, clearAlerts, getAlertAtTimestamp, getStatistics };
+}
+```
+
+---
+
+#### 3. Video Page Integration
+**File**: `apps/web/src/app/video/page.tsx`
+
+**Integration**:
+```typescript
+// Initialize time-based alerts hook
+const { alerts, addAlert, clearAlerts } = useTimeBasedAlerts();
+
+// Handle WebSocket messages
+const { connect, play } = useVideoStream({
+  videoId: videoMetadata?.videoId,
+  onDetection: (message) => {
+    addDetectionResult(message); // Per-frame detections
+  },
+  onTimeBasedAlert: (message) => {
+    addAlert(message); // One alert per second
+    console.log('Time-based alert:', message.data.second, message.data.alert.priority.priority_level);
+  },
+  onCompleted: () => {
+    setProcessingCompleted(true);
+  }
+});
+
+// Display alert timeline
+{alerts.length > 0 && (
+  <AlertTimeline
+    alerts={alerts}
+    currentTimestamp={currentVideoTime}
+  />
+)}
+
+// Cleanup on video delete
+const handleDeleteVideo = async () => {
+  clearAlerts(); // Clear time-based alerts
+  clearDetections(); // Clear per-frame detections
+};
+```
+
+---
+
+### WebSocket Message Flow
+
+**New Message Type** (`apps/api/app/api/video_routes.py`):
+```json
+{
+  "type": "time_based_alert",
+  "data": {
+    "second": 3,
+    "timestamp": 3.0,
+    "alert": {
+      "detection": {
+        "class_name": "drone",
+        "class_id": 1,
+        "confidence": 0.89,
+        "bbox": {"x1": 150, "y1": 250, "x2": 450, "y2": 550}
+      },
+      "context": {
+        "estimated_size": "large",
+        "bbox_area_pixels": 120000,
+        "screen_position": "center-right",
+        "threat_level_raw": "high"
+      },
+      "message": {
+        "title": "Large Drone Detected - High Threat",
+        "emoji": "🚁",
+        "body": "A **large drone** has been detected in the **center-right** area of the frame...",
+        "sections": {...}
+      },
+      "action": {
+        "primary_action": "Prepare for evasive maneuvers immediately",
+        "secondary_action": "Alert air traffic control and monitor trajectory",
+        "reasoning": "Large drone at high confidence poses significant collision risk",
+        "urgency": "urgent"
+      },
+      "priority": {
+        "overall_score": 78.5,
+        "priority_level": "high",
+        "factors": {
+          "threat_level": {"value": "high", "score": 90, "weight": 0.4},
+          "confidence": {"value": 0.89, "score": 89, "weight": 0.3},
+          "size_impact": {"value": "large", "score": 85, "weight": 0.2},
+          "urgency": {"value": "urgent", "score": 80, "weight": 0.1}
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+### API Endpoints
+
+**Removed Obsolete Endpoints** (as of 2025-11-02):
+- ❌ `POST /api/v1/alerts/generate-complete` - Previously used by now-deleted AlertDetailModal
+- ❌ `POST /api/v1/alerts/generate-message` - Development/testing endpoint, unused
+- ❌ `POST /api/v1/alerts/generate-action` - Development/testing endpoint, unused
+
+**Remaining Endpoints**:
+- ✅ `POST /api/v1/alerts/generate-batch` - Batch alert generation (future analytics)
+- ✅ `POST /api/v1/alerts/generate-summary` - Summary report generation (future analytics)
+
+**Note**: Time-based alerts are generated automatically during video processing and sent via WebSocket. No manual HTTP API calls needed from frontend.
+
+---
+
+### Performance & Cost Analysis
+
+**Processing Efficiency**:
+| Metric | Value |
+|--------|-------|
+| Video Length | 60 seconds |
+| YOLO Detections | 600 (10 FPS × 60s) |
+| Detections Stored | 600 (all sent to frontend) |
+| Alerts Generated | 60 (one per second) |
+| LLM API Calls | 240 (4 agents × 60 seconds) |
+| Total Cost | ~$0.036 (60 × 4 × $0.00015/call) |
+| Processing Time | ~2-3 minutes for 60s video |
+
+**Cost Breakdown**:
+- Context Agent: Rule-based, no API call
+- Message Agent: ~$0.00015 per call
+- Action Agent: ~$0.00015 per call
+- Priority Agent: ~$0.00015 per call
+- **Total per alert**: ~$0.00045
+
+**User Experience Benefits**:
+- ✅ Zero manual clicks required
+- ✅ Comprehensive alerts with rich context
+- ✅ Actionable recommendations for pilots
+- ✅ Priority-sorted timeline for quick scanning
+- ✅ Perfect synchronization (one alert = one second of video)
+
+---
+
+### Removed Obsolete Components
+
+**Deleted Files** (as of 2025-11-02):
+1. `apps/web/src/components/video/detection-context-panel.tsx` - Replaced by inline expandable details in AlertTimeline
+2. `apps/web/src/components/video/alert-detail-modal.tsx` - Replaced by inline expandable details in AlertTimeline
+
+**Reason for Removal**:
+- Modal-based detail view was cumbersome (required clicking, opening, closing)
+- Inline expandable details provide better UX (view multiple alerts at once)
+- Consistent with time-based alert design philosophy (seamless, automatic)
+
+---
+
+*Last updated: 2025-11-02*

@@ -10,10 +10,13 @@ import {
   AlertTriangle,
   Info,
   ChevronRight,
-  Clock
+  ChevronDown,
+  Clock,
+  Target,
+  Zap,
+  TrendingUp
 } from "lucide-react";
-import { TimeBasedAlert } from "@repo/types/stream";
-import { AlertDetailModal } from "./alert-detail-modal";
+import type { TimeBasedAlert } from "@repo/types";
 
 interface AlertTimelineProps {
   alerts: TimeBasedAlert[];
@@ -26,8 +29,7 @@ export function AlertTimeline({
   currentTimestamp = 0,
   onSeekTo
 }: AlertTimelineProps) {
-  const [selectedAlert, setSelectedAlert] = useState<TimeBasedAlert | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
   // Sort alerts by timestamp
   const sortedAlerts = [...alerts].sort((a, b) => a.timestamp - b.timestamp);
@@ -76,9 +78,23 @@ export function AlertTimeline({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleViewDetails = (alert: TimeBasedAlert) => {
-    setSelectedAlert(alert);
-    setIsModalOpen(true);
+  const handleToggleDetails = (alertId: string) => {
+    setExpandedAlertId(expandedAlertId === alertId ? null : alertId);
+  };
+
+  const getUrgencyColor = (urgency: string) => {
+    switch (urgency.toLowerCase()) {
+      case 'immediate':
+        return 'bg-red-500 text-white';
+      case 'urgent':
+        return 'bg-orange-500 text-white';
+      case 'caution':
+        return 'bg-yellow-500 text-white';
+      case 'advisory':
+        return 'bg-blue-500 text-white';
+      default:
+        return 'bg-gray-500 text-white';
+    }
   };
 
   const handleSeek = (timestamp: number) => {
@@ -127,10 +143,12 @@ export function AlertTimeline({
                 const Icon = config.icon;
                 const isCurrentAlert = currentTimestamp >= alert.timestamp &&
                   (index === sortedAlerts.length - 1 || currentTimestamp < sortedAlerts[index + 1].timestamp);
+                const alertId = `${alert.second}-${index}`;
+                const isExpanded = expandedAlertId === alertId;
 
                 return (
                   <div
-                    key={`${alert.second}-${index}`}
+                    key={alertId}
                     className={`
                       p-4 rounded-lg border-2 transition-all
                       ${config.bgColor} ${config.borderColor}
@@ -174,6 +192,83 @@ export function AlertTimeline({
                           {alert.primaryAction}
                         </p>
 
+                        {/* Expandable Details */}
+                        {isExpanded && (
+                          <div className="mt-4 space-y-3 border-t pt-3">
+                            {/* Priority Score Details */}
+                            <div className="p-3 bg-background rounded-lg border">
+                              <div className="flex items-center gap-2 mb-2">
+                                <TrendingUp className="w-4 h-4 text-gray-500" />
+                                <h5 className="font-semibold text-xs">Priority Analysis</h5>
+                              </div>
+                              <div className="text-center mb-2">
+                                <div className="text-2xl font-bold">{alert.priorityScore.toFixed(1)}</div>
+                                <div className="text-xs text-muted-foreground">Priority Score</div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {Object.entries(alert.fullAlert.priority.factors).map(([key, data]: [string, any]) => (
+                                  <div key={key} className="flex justify-between">
+                                    <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}:</span>
+                                    <span className="font-medium">{data.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Detection Context */}
+                            <div className="p-3 bg-background rounded-lg border">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Target className="w-4 h-4 text-gray-500" />
+                                <h5 className="font-semibold text-xs">Detection Context</h5>
+                              </div>
+                              <div className="text-xs space-y-1">
+                                <p><span className="text-muted-foreground">Size:</span> <span className="font-medium capitalize">{alert.fullAlert.context.estimated_size}</span></p>
+                                <p><span className="text-muted-foreground">Position:</span> <span className="font-medium capitalize">{alert.fullAlert.context.screen_position}</span></p>
+                                <p><span className="text-muted-foreground">Area:</span> <span className="font-medium">{alert.fullAlert.context.bbox_area_pixels.toLocaleString()} px²</span></p>
+                                <p><span className="text-muted-foreground">Threat Level:</span> <span className="font-medium capitalize">{alert.fullAlert.context.threat_level_raw}</span></p>
+                              </div>
+                            </div>
+
+                            {/* Action Recommendations */}
+                            <div className="p-3 bg-background rounded-lg border">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="w-4 h-4 text-gray-500" />
+                                  <h5 className="font-semibold text-xs">Recommended Actions</h5>
+                                </div>
+                                <Badge className={`text-xs ${getUrgencyColor(alert.fullAlert.action.urgency)}`}>
+                                  {alert.fullAlert.action.urgency.toUpperCase()}
+                                </Badge>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                                  <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold mb-1">PRIMARY</p>
+                                  <p className="text-xs">{alert.fullAlert.action.primary_action}</p>
+                                </div>
+                                <div className="p-2 bg-muted rounded border">
+                                  <p className="text-xs text-muted-foreground font-semibold mb-1">SECONDARY</p>
+                                  <p className="text-xs">{alert.fullAlert.action.secondary_action}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Message Body */}
+                            <div className="p-3 bg-background rounded-lg border">
+                              <h5 className="font-semibold text-xs mb-2">Full Message</h5>
+                              <div className="text-xs prose prose-sm dark:prose-invert max-w-none">
+                                <div
+                                  dangerouslySetInnerHTML={{
+                                    __html: alert.fullAlert.message.body
+                                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                      .replace(/^- /gm, '• ')
+                                      .replace(/\n/g, '<br />'),
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Actions */}
                         <div className="flex gap-2">
                           <Button
@@ -187,11 +282,15 @@ export function AlertTimeline({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleViewDetails(alert)}
+                            onClick={() => handleToggleDetails(alertId)}
                             className="text-xs"
                           >
-                            View Details
-                            <ChevronRight className="w-3 h-3 ml-1" />
+                            {isExpanded ? 'Hide Details' : 'View Details'}
+                            {isExpanded ? (
+                              <ChevronDown className="w-3 h-3 ml-1" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3 ml-1" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -211,33 +310,6 @@ export function AlertTimeline({
           </ScrollArea>
         </CardContent>
       </Card>
-
-      {/* Alert Detail Modal */}
-      {selectedAlert && (
-        <AlertDetailModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedAlert(null);
-          }}
-          alert={{
-            detection: {
-              id: `alert-${selectedAlert.second}`,
-              className: selectedAlert.hazardType,
-              confidence: 0, // Not available in timeline data
-              bbox: selectedAlert.fullAlert.detection.bbox,
-            },
-            context: selectedAlert.fullAlert.context,
-          }}
-          preloadedAlert={{
-            detection: selectedAlert.fullAlert.detection,
-            context: selectedAlert.fullAlert.context,
-            message: selectedAlert.fullAlert.message,
-            action: selectedAlert.fullAlert.action,
-            priority: selectedAlert.fullAlert.priority,
-          }}
-        />
-      )}
     </>
   );
 }

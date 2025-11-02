@@ -13,7 +13,6 @@ import { useTimeBasedAlerts } from '@/hooks/use-time-based-alerts';
 import { VideoUpload } from '@/components/video/video-upload';
 import { MjpegPlayer } from '@/components/video/mjpeg-player';
 import { DetectionStats } from '@/components/video/detection-stats';
-import { DetectionContextPanel } from '@/components/video/detection-context-panel';
 import { DetectionDebug } from '@/components/video/detection-debug';
 import { DetectionSettings } from '@/components/controls/detection-settings';
 import { AlertTimeline } from '@/components/video/alert-timeline';
@@ -337,13 +336,6 @@ export default function VideoPage() {
                 detectionCount={detectionCount}
                 processingTimeMs={processingTimeMs}
                 latestFrame={latestFrame}
-              />
-
-              {/* Detection Context Panel */}
-              <DetectionContextPanel
-                detections={detections}
-                videoWidth={videoMetadata.width}
-                videoHeight={videoMetadata.height}
               />
 
               {/* Alert Timeline */}
