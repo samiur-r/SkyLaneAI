@@ -231,16 +231,60 @@ Warning levels:
 ## Deployment
 
 ### Frontend (Vercel)
+
+**Quick Deploy:**
+1. Push your code to GitHub
+2. Go to [Vercel](https://vercel.com/new)
+3. Import your repository
+4. Vercel auto-detects Next.js configuration
+5. Add environment variables:
+   ```
+   NEXT_PUBLIC_API_URL=https://your-api.onrender.com
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+6. Deploy!
+
+**Manual build:**
 ```bash
 pnpm --filter web build
 vercel --prod
 ```
 
-### Backend
-Backend deployment options will be configured in future phases.
+### Backend (Render)
+
+**Option 1: Blueprint Deployment (Recommended)**
+1. Push your code to GitHub
+2. Go to [Render Dashboard](https://dashboard.render.com)
+3. Click "New +" → "Blueprint"
+4. Connect your GitHub repository
+5. Render auto-detects `render.yaml` in the root
+6. Set environment variables when prompted:
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `CORS_ORIGINS`: `["https://your-app.vercel.app"]`
+7. Click "Apply" and wait 5-10 minutes
+
+**Option 2: Manual Deployment**
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click "New +" → "Web Service"
+3. Connect your GitHub repository
+4. Configure:
+   - **Name**: skylaneai-api
+   - **Root Directory**: `apps/api`
+   - **Runtime**: Python 3
+   - **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+5. Add environment variables (same as above)
+6. Click "Create Web Service"
+
+**Important Notes:**
+- Free tier spins down after 15 min of inactivity
+- First request after spin-down takes 30-60s
+- YOLO model downloads on first request (~30s)
+- See [apps/api/DEPLOYMENT.md](apps/api/DEPLOYMENT.md) for detailed guide
 
 ### Supabase
-Production database and authentication are managed through Supabase dashboard.
+Production database and authentication are managed through [Supabase dashboard](https://supabase.com/dashboard).
 
 ## Development
 
