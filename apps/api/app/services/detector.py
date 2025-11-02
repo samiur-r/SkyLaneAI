@@ -87,6 +87,15 @@ class YOLODetector:
         detections = []
         sky_hazard_classes = settings.SKY_HAZARD_CLASSES
 
+        # DISABLED: Class mapping causes misclassification in real videos
+        # Since YOLO isn't trained on drones, it misidentifies objects
+        # Better to show actual YOLO detections without mapping
+        # class_mapping = {
+        #     'kite': 'drone',
+        #     'airplane': 'drone',
+        #     'sports ball': 'balloon'
+        # }
+
         for result in results:
             boxes = result.boxes
             for i in range(len(boxes)):
@@ -100,8 +109,11 @@ class YOLODetector:
                 if sky_hazard_classes and cls_name not in sky_hazard_classes:
                     continue
 
+                # Use original class name without mapping
+                mapped_class_name = cls_name
+
                 detection = Detection(
-                    class_name=cls_name,
+                    class_name=mapped_class_name,
                     class_id=cls_id,
                     confidence=conf,
                     bbox=DetectionBox(
@@ -132,12 +144,13 @@ class YOLODetector:
 
         # Color mapping for different classes
         class_colors = {
-            'bird': (68, 68, 239),      # Red (BGR)
-            'drone': (11, 158, 245),    # Amber (BGR)
+            'bird': (68, 68, 239),       # Red (BGR)
+            'drone': (11, 158, 245),     # Amber/Orange (BGR)
+            'balloon': (153, 72, 236),   # Pink/Purple (BGR)
             'aircraft': (246, 130, 59),  # Blue (BGR)
+            'airplane': (246, 130, 59),  # Blue (BGR)
             'person': (129, 185, 16),    # Green (BGR)
             'car': (246, 92, 139),       # Purple (BGR)
-            'balloon': (153, 72, 236),   # Pink (BGR)
             'kite': (166, 184, 20),      # Teal (BGR)
         }
         default_color = (128, 123, 107)  # Gray (BGR)
