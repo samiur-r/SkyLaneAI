@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd apps/web && pnpm run build",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://skylaneai-api.onrender.com/api/:path*"
+    }
+  ]
+}
