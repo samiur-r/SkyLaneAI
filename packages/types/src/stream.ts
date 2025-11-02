@@ -109,12 +109,62 @@ export interface WSPongMessage {
   type: 'pong';
 }
 
+// Time-based alert message (NEW)
+export interface WSTimeBasedAlertMessage {
+  type: 'time_based_alert';
+  data: {
+    second: number;
+    timestamp: number;
+    alert: {
+      detection: {
+        class_name: string;
+        class_id: number;
+        confidence: number;
+        bbox: {
+          x1: number;
+          y1: number;
+          x2: number;
+          y2: number;
+        };
+      };
+      context: {
+        estimated_size: string;
+        bbox_area_pixels: number;
+        screen_position: string;
+        threat_level_raw: string;
+      };
+      message: {
+        title: string;
+        emoji: string;
+        body: string;
+        sections: Record<string, string>;
+      };
+      action: {
+        primary_action: string;
+        secondary_action: string;
+        reasoning: string;
+        urgency: string;
+      };
+      priority: {
+        overall_score: number;
+        priority_level: string;
+        factors: Record<string, {
+          value: string | number;
+          score: number;
+          weight: number;
+        }>;
+      };
+    };
+  };
+}
+
 export type WSServerMessage =
   | WSAnswerMessage
   | WSDetectionMessage
   | WSStatsMessage
   | WSErrorMessage
-  | WSPongMessage;
+  | WSPongMessage
+  | WSTimeBasedAlertMessage;
 
 // Camera device info
 export interface CameraDevice {
@@ -126,4 +176,18 @@ export interface CameraDevice {
 // Detection result with normalized data
 export interface NormalizedDetection extends Detection {
   color: string;
+}
+
+// Time-based alert for timeline display
+export interface TimeBasedAlert {
+  second: number;
+  timestamp: number;
+  priorityLevel: 'critical' | 'high' | 'medium' | 'low';
+  priorityScore: number;
+  title: string;
+  emoji: string;
+  hazardType: string;
+  primaryAction: string;
+  urgency: 'immediate' | 'urgent' | 'caution' | 'advisory';
+  fullAlert: WSTimeBasedAlertMessage['data']['alert'];
 }

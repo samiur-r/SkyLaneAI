@@ -44,11 +44,13 @@ interface NaturalLanguageAlert {
 }
 
 export interface AlertDetailModalProps {
-  detection: NormalizedDetection | null;
+  detection?: NormalizedDetection | null;
   videoWidth?: number;
   videoHeight?: number;
   isOpen: boolean;
   onClose: () => void;
+  preloadedAlert?: NaturalLanguageAlert; // NEW: Allow passing pre-generated alerts
+  alert?: any; // NEW: Alternative alert structure from timeline
 }
 
 export function AlertDetailModal({
@@ -57,21 +59,40 @@ export function AlertDetailModal({
   videoHeight,
   isOpen,
   onClose,
+  preloadedAlert,
+  alert: timelineAlert,
 }: AlertDetailModalProps) {
   const [alert, setAlert] = useState<NaturalLanguageAlert | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch complete alert when modal opens
+  // Fetch complete alert when modal opens (or use preloaded)
   useEffect(() => {
-    if (isOpen && detection) {
-      fetchCompleteAlert();
+    if (isOpen) {
+      if (preloadedAlert) {
+        // Use preloaded alert (from timeline)
+        setAlert(preloadedAlert);
+        setIsLoading(false);
+      } else if (timelineAlert) {
+        // Use alert structure from timeline
+        setAlert({
+          detection: timelineAlert.detection,
+          context: timelineAlert.context,
+          message: timelineAlert.message || {},
+          action: timelineAlert.action || {},
+          priority: timelineAlert.priority || {},
+        });
+        setIsLoading(false);
+      } else if (detection) {
+        // Fetch alert from API
+        fetchCompleteAlert();
+      }
     } else {
       // Reset state when modal closes
       setAlert(null);
       setError(null);
     }
-  }, [isOpen, detection]);
+  }, [isOpen, detection, preloadedAlert, timelineAlert]);
 
   const fetchCompleteAlert = async () => {
     if (!detection) return;

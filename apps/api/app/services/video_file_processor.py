@@ -2,7 +2,7 @@
 import asyncio
 import time
 import logging
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, List
 from pathlib import Path
 from collections import deque
 import cv2
@@ -10,6 +10,7 @@ import numpy as np
 from app.services.detector import detector
 from app.models.schemas import Detection
 from app.agents.context_agent import context_agent
+from app.workflows.alert_workflow import alert_workflow
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,15 @@ class VideoFileProcessor:
         self.on_detection_callback: Optional[Callable] = None
         self.on_progress_callback: Optional[Callable] = None
         self.on_completed_callback: Optional[Callable] = None
+        self.on_alert_callback: Optional[Callable] = None  # NEW: Callback for time-based alerts
 
         # Processing task
         self.processing_task: Optional[asyncio.Task] = None
+
+        # Time-based alert generation
+        self.enable_time_based_alerts = True  # Enable/disable alert generation
+        self.current_second = 0
+        self.detections_in_current_second: List[tuple] = []  # Store (detection, context) tuples
 
         # Frame buffer for MJPEG streaming (stores annotated frames)
         self.annotated_frames: deque = deque(maxlen=10000)  # Store up to 10k frames
@@ -300,6 +307,7 @@ class VideoFileProcessor:
 
             # Calculate timestamp
             timestamp = frame_number / self.video_metadata["fps"] if self.video_metadata else 0
+            video_second = int(timestamp)  # Current second of the video
 
             # Enrich detections with context (rule-based, very fast)
             enriched_contexts = []
@@ -310,6 +318,25 @@ class VideoFileProcessor:
                     frame.shape[1],  # width
                     frame.shape[0]   # height
                 )
+
+            # Time-based alert generation: aggregate detections by second
+            if self.enable_time_based_alerts:
+                # Store detections for current second
+                for det, ctx in zip(detections, enriched_contexts):
+                    self.detections_in_current_second.append((det, ctx, frame.shape[1], frame.shape[0]))
+
+                # Check if we've moved to a new second
+                if video_second > self.current_second:
+                    # Generate alert for the completed second
+                    await self._generate_alert_for_second(self.current_second)
+
+                    # Reset for new second
+                    self.current_second = video_second
+                    self.detections_in_current_second = []
+
+                    # Add current frame's detections to new second
+                    for det, ctx in zip(detections, enriched_contexts):
+                        self.detections_in_current_second.append((det, ctx, frame.shape[1], frame.shape[0]))
 
             # Render detections on frame for MJPEG streaming
             annotated_frame = await asyncio.to_thread(
@@ -364,8 +391,110 @@ class VideoFileProcessor:
             }
             await self.on_progress_callback(progress)
 
+    async def _generate_alert_for_second(self, second: int):
+        """
+        Generate a time-based alert for a completed second.
+        Selects the best detection from that second and generates a complete alert.
+
+        Args:
+            second: The video second (0-indexed) to generate alert for
+        """
+        if not self.detections_in_current_second:
+            logger.debug(f"No detections in second {second}, skipping alert generation")
+            return
+
+        try:
+            # Select best detection based on threat level and confidence
+            best_detection, best_context, img_width, img_height = self._select_best_detection()
+
+            if not best_detection:
+                return
+
+            logger.info(
+                f"Generating alert for second {second}: "
+                f"{best_detection.class_name} (confidence: {best_detection.confidence:.2f})"
+            )
+
+            # Generate complete alert using all 4 agents
+            alert = await alert_workflow.generate_complete_alert(
+                detection=best_detection,
+                image_width=img_width,
+                image_height=img_height
+            )
+
+            # Send alert to frontend via callback
+            if self.on_alert_callback:
+                alert_data = {
+                    "second": second,
+                    "timestamp": float(second),
+                    "alert": {
+                        "detection": alert.detection.model_dump(),
+                        "context": alert.context.model_dump(),
+                        "message": alert.message.model_dump(),
+                        "action": alert.action.model_dump(),
+                        "priority": alert.priority.model_dump()
+                    }
+                }
+                await self.on_alert_callback(alert_data)
+
+            logger.info(
+                f"Alert generated for second {second}: "
+                f"Priority={alert.priority.priority_level} ({alert.priority.overall_score:.1f})"
+            )
+
+        except Exception as e:
+            logger.error(f"Error generating alert for second {second}: {e}", exc_info=True)
+
+    def _select_best_detection(self) -> tuple:
+        """
+        Select the best detection from current second based on priority.
+
+        Priority calculation:
+        - Threat level: critical=100, high=75, moderate=50, low=25 (weight: 0.5)
+        - Confidence: 0-100 scale (weight: 0.3)
+        - Size: larger = higher priority (weight: 0.2)
+
+        Returns:
+            Tuple of (detection, context, image_width, image_height) or (None, None, None, None)
+        """
+        if not self.detections_in_current_second:
+            return None, None, None, None
+
+        threat_scores = {"critical": 100, "high": 75, "moderate": 50, "low": 25}
+
+        best_score = -1
+        best_item = None
+
+        for det, ctx, width, height in self.detections_in_current_second:
+            # Calculate priority score
+            threat_score = threat_scores.get(ctx.threat_level_raw, 0)
+            confidence_score = det.confidence * 100
+
+            # Size score based on bbox area percentage
+            bbox_area = (det.bbox.x2 - det.bbox.x1) * (det.bbox.y2 - det.bbox.y1)
+            frame_area = width * height
+            size_percentage = (bbox_area / frame_area) * 100
+            size_score = min(size_percentage * 10, 100)  # Scale to 0-100
+
+            # Weighted priority score
+            priority = (
+                threat_score * 0.5 +
+                confidence_score * 0.3 +
+                size_score * 0.2
+            )
+
+            if priority > best_score:
+                best_score = priority
+                best_item = (det, ctx, width, height)
+
+        return best_item if best_item else (None, None, None, None)
+
     async def _on_video_completed(self):
         """Handle video completion"""
+        # Generate alert for the last second if it has detections
+        if self.enable_time_based_alerts and self.detections_in_current_second:
+            await self._generate_alert_for_second(self.current_second)
+
         self.is_playing = False
         self.processing_completed = True
         self.stats["end_time"] = time.time()

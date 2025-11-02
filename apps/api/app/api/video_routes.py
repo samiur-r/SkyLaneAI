@@ -545,10 +545,25 @@ async def video_websocket_endpoint(websocket: WebSocket, video_id: str):
             except Exception as e:
                 logger.error(f"Error sending completed: {e}")
 
+        async def send_alert(alert_data: dict):
+            """Send time-based alert to client"""
+            try:
+                await websocket.send_json({
+                    "type": "time_based_alert",
+                    "data": alert_data
+                })
+                logger.info(
+                    f"Sent time-based alert for second {alert_data['second']}: "
+                    f"{alert_data['alert']['priority']['priority_level']}"
+                )
+            except Exception as e:
+                logger.error(f"Error sending alert: {e}")
+
         # Configure callbacks
         processor.set_detection_callback(send_detection_result)
         processor.set_progress_callback(send_progress_update)
         processor.set_completed_callback(send_completed)
+        processor.on_alert_callback = send_alert  # NEW: Time-based alert callback
 
         # Store processor
         active_processors[video_id] = processor

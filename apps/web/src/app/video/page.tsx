@@ -9,18 +9,20 @@ import { useEffect, useRef, useState } from 'react';
 import { useVideoUpload } from '@/hooks/use-video-upload';
 import { useVideoStream } from '@/hooks/use-video-stream';
 import { useDetections } from '@/hooks/use-detections';
+import { useTimeBasedAlerts } from '@/hooks/use-time-based-alerts';
 import { VideoUpload } from '@/components/video/video-upload';
 import { MjpegPlayer } from '@/components/video/mjpeg-player';
 import { DetectionStats } from '@/components/video/detection-stats';
 import { DetectionContextPanel } from '@/components/video/detection-context-panel';
 import { DetectionDebug } from '@/components/video/detection-debug';
 import { DetectionSettings } from '@/components/controls/detection-settings';
+import { AlertTimeline } from '@/components/video/alert-timeline';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Play, Pause, Trash2, Upload as UploadIcon } from 'lucide-react';
-import type { VideoUploadMetadata, StreamSettings } from '@repo/types';
+import type { VideoUploadMetadata, StreamSettings, WSTimeBasedAlertMessage } from '@repo/types';
 
 export default function VideoPage() {
   const [videoMetadata, setVideoMetadata] = useState<VideoUploadMetadata | null>(null);
@@ -51,8 +53,6 @@ export default function VideoPage() {
     detectionCount,
     latestFrame,
     processingTimeMs,
-    frameWidth,
-    frameHeight,
     stats: detectionStats,
     addDetectionResult,
     clearDetections,
@@ -60,6 +60,14 @@ export default function VideoPage() {
   } = useDetections({
     confidenceThreshold: streamSettings.confidenceThreshold,
   });
+
+  // Time-based alerts hook
+  const {
+    alerts,
+    addAlert,
+    clearAlerts,
+    getStatistics: getAlertStatistics,
+  } = useTimeBasedAlerts();
 
   // Video stream hook
   const {
@@ -69,13 +77,16 @@ export default function VideoPage() {
     connect,
     disconnect,
     play,
-    pause,
-    resume,
     updateSettings,
   } = useVideoStream({
     videoId: videoMetadata?.videoId || null,
     onDetection: (message) => {
       addDetectionResult(message);
+    },
+    onTimeBasedAlert: (message: WSTimeBasedAlertMessage) => {
+      // Handle time-based alert messages
+      addAlert(message);
+      console.log('Time-based alert received:', message.data.second, message.data.alert.priority.priority_level);
     },
     onCompleted: () => {
       setIsProcessing(false);
@@ -163,6 +174,7 @@ export default function VideoPage() {
     // Disconnect and cleanup
     disconnect();
     clearDetections();
+    clearAlerts();
 
     // Delete from server
     const success = await deleteVideo(videoMetadata.videoId);
@@ -333,6 +345,14 @@ export default function VideoPage() {
                 videoWidth={videoMetadata.width}
                 videoHeight={videoMetadata.height}
               />
+
+              {/* Alert Timeline */}
+              {alerts.length > 0 && (
+                <AlertTimeline
+                  alerts={alerts}
+                  currentTimestamp={progress?.currentFrame ? progress.currentFrame / videoMetadata.fps : 0}
+                />
+              )}
             </div>
 
             {/* Right Column - Controls */}

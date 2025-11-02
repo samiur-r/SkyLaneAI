@@ -6,6 +6,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type {
   WSDetectionMessage,
   WSVideoServerMessage,
+  WSTimeBasedAlertMessage,
   VideoProcessingProgress
 } from '@repo/types';
 
@@ -14,6 +15,7 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000';
 export interface UseVideoStreamOptions {
   videoId: string | null;
   onDetection?: (message: WSDetectionMessage) => void;
+  onTimeBasedAlert?: (message: WSTimeBasedAlertMessage) => void;
   onProgress?: (progress: VideoProcessingProgress) => void;
   onCompleted?: () => void;
   onError?: (error: string) => void;
@@ -40,7 +42,7 @@ export interface UseVideoStreamReturn {
 }
 
 export function useVideoStream(options: UseVideoStreamOptions): UseVideoStreamReturn {
-  const { videoId, onDetection, onProgress, onCompleted, onError } = options;
+  const { videoId, onDetection, onTimeBasedAlert, onProgress, onCompleted, onError } = options;
 
   const [connectionStatus, setConnectionStatus] = useState<VideoConnectionStatus>('disconnected');
   const [progress, setProgress] = useState<VideoProcessingProgress | null>(null);
@@ -90,15 +92,19 @@ export function useVideoStream(options: UseVideoStreamOptions): UseVideoStreamRe
 
       ws.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data) as WSVideoServerMessage | WSDetectionMessage;
+          const message = JSON.parse(event.data);
 
           switch (message.type) {
             case 'detection':
               onDetection?.(message as WSDetectionMessage);
               break;
 
+            case 'time_based_alert':
+              onTimeBasedAlert?.(message as WSTimeBasedAlertMessage);
+              break;
+
             case 'progress':
-              const progressData = (message as any).data;
+              const progressData = message.data;
               setProgress(progressData);
               onProgress?.(progressData);
               break;
@@ -117,13 +123,13 @@ export function useVideoStream(options: UseVideoStreamOptions): UseVideoStreamRe
               break;
 
             case 'error':
-              const errorMsg = (message as any).message || 'Unknown error';
+              const errorMsg = message.message || 'Unknown error';
               console.error('Video WebSocket error:', errorMsg);
               onError?.(errorMsg);
               break;
 
             default:
-              console.log('Unknown message type:', (message as any).type);
+              console.log('Unknown message type:', message.type);
           }
         } catch (err) {
           console.error('Error parsing WebSocket message:', err);
