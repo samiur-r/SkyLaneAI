@@ -49,6 +49,13 @@ apps/api/storage/
 apps/api/.env
 apps/api/models/  # YOLO model cache directory
 apps/api/.venv/  # Python virtual environment (uv)
+apps/api/temp/  # Temporary uploaded files and videos
+
+# Video files (can be large)
+*.mp4
+*.avi
+*.mov
+*.mkv
 
 # IDE
 .vscode/
