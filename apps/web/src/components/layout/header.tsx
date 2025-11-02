@@ -10,13 +10,10 @@ export function Header() {
             <span className="text-sm text-muted-foreground">v2.0</span>
           </div>
           <nav className="flex items-center space-x-6">
-            <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
+            <a href="/" className="text-sm font-medium hover:text-primary transition-colors">
               Home
             </a>
-            <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
-              About
-            </a>
-            <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
+            <a href="/docs" className="text-sm font-medium hover:text-primary transition-colors">
               Docs
             </a>
           </nav>

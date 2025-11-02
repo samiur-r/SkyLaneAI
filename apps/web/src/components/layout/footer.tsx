@@ -8,7 +8,7 @@ export function Footer() {
           </div>
           <div className="flex items-center space-x-4">
             <a
-              href="https://github.com"
+              href="https://github.com/samiur-r"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -16,13 +16,7 @@ export function Footer() {
               GitHub
             </a>
             <a
-              href="#"
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              Documentation
-            </a>
-            <a
-              href="#"
+              href="mailto:samiur.rahman.akif@gmail.com"
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
               Contact

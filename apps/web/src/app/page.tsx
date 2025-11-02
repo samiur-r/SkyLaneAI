@@ -11,7 +11,7 @@ import { Video, Play, Upload } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="py-12">
+    <div className="container mx-auto px-4 py-12">
       {/* Hero Section */}
       <section className="text-center mb-16">
         <h1 className="text-4xl md:text-6xl font-bold mb-4">SkyLaneAI</h1>
