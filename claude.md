@@ -1,5 +1,7 @@
 # SkyLaneAI v2 - Claude Development Context
 
+**Last Updated**: 2025-11-02
+
 ## Project Vision
 
 SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and other aerial vehicles from sky hazards. The system analyzes video feeds in real-time to detect birds, drones, balloons, and kites, calculating Time-to-Contact (TTC) to provide graded collision warnings.
@@ -44,208 +46,173 @@ SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and ot
 - Reduced disk space usage
 - Faster installation times
 
+## Current Implementation Status
+
+### ✅ Implemented Features
+- **Video Upload & Processing**: Upload videos for hazard detection analysis
+- **Real-time Detection Display**: Video player with bounding boxes and detection labels
+- **Alert Timeline**: Interactive timeline showing all detections throughout the video
+- **Detection Filtering**: Filter alerts by hazard type and severity level
+- **AI-Powered Alert System**: Context-aware alert generation with message agents
+- **Responsive UI**: Modern interface built with shadcn/ui components
+- **Documentation Page**: Comprehensive docs at `/docs` explaining features and technology
+- **Layout Components**: Header with Home/Docs navigation, Footer with GitHub and contact links
+
+### 🚧 In Development
+- **Live Camera Feed**: Real-time WebRTC/WebSocket streaming from cameras
+- **Time-to-Contact (TTC)**: Collision risk calculation and prediction
+- **Graded Warning System**: Color-coded threat levels (Green, Yellow, Orange, Red)
+- **User Authentication**: Secure login via Supabase Auth
+- **Video History**: Database storage and retrieval of past analyses
+- **Dashboard Analytics**: Statistical visualizations and trends
+- **Multi-camera Support**: Simultaneous monitoring of multiple feeds
+
 ## Project Structure Deep Dive
 
 ```
-SkylaneAI-v2/
+SkyLaneAI/
 ├── apps/
 │   ├── web/                          # Next.js Frontend
 │   │   ├── app/
-│   │   │   ├── (auth)/              # Auth route group
-│   │   │   │   ├── login/
-│   │   │   │   └── register/
-│   │   │   ├── (dashboard)/         # Dashboard route group
-│   │   │   │   ├── layout.tsx
-│   │   │   │   ├── page.tsx
-│   │   │   │   ├── videos/
-│   │   │   │   ├── live/
-│   │   │   │   ├── analytics/
-│   │   │   │   └── settings/
-│   │   │   ├── api/                 # API routes
-│   │   │   │   └── webhook/
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
+│   │   │   ├── page.tsx             # Home/Landing page
+│   │   │   ├── layout.tsx           # Root layout with Header/Footer
+│   │   │   ├── globals.css          # Global styles
+│   │   │   ├── docs/                # Documentation page
+│   │   │   │   └── page.tsx
+│   │   │   ├── video/               # Video analysis page
+│   │   │   │   └── page.tsx
+│   │   │   └── stream/              # Live stream page (in progress)
+│   │   │       └── page.tsx
 │   │   ├── components/
 │   │   │   ├── ui/                  # shadcn/ui components
 │   │   │   ├── video/
-│   │   │   │   ├── video-player.tsx
-│   │   │   │   ├── video-uploader.tsx
-│   │   │   │   └── detection-overlay.tsx
-│   │   │   ├── hazards/
-│   │   │   │   ├── hazard-card.tsx
-│   │   │   │   ├── ttc-indicator.tsx
-│   │   │   │   └── warning-badge.tsx
-│   │   │   ├── dashboard/
-│   │   │   │   ├── stats-card.tsx
-│   │   │   │   └── detection-chart.tsx
+│   │   │   │   ├── video-upload-zone.tsx
+│   │   │   │   ├── alert-timeline.tsx
+│   │   │   │   ├── video-player-with-detections.tsx
+│   │   │   │   └── alert-filters.tsx
 │   │   │   └── layout/
-│   │   │       ├── header.tsx
-│   │   │       ├── sidebar.tsx
-│   │   │       └── footer.tsx
+│   │   │       ├── header.tsx       # Navigation: Home, Docs
+│   │   │       └── footer.tsx       # GitHub link, Contact email
 │   │   ├── lib/
-│   │   │   ├── supabase/
-│   │   │   │   ├── client.ts
-│   │   │   │   ├── server.ts
-│   │   │   │   └── middleware.ts
-│   │   │   ├── hooks/
-│   │   │   │   ├── use-video-upload.ts
-│   │   │   │   ├── use-detections.ts
-│   │   │   │   └── use-realtime.ts
-│   │   │   └── utils.ts
+│   │   │   └── utils.ts             # Utility functions (cn, etc.)
 │   │   ├── public/
-│   │   ├── styles/
 │   │   └── package.json
 │   │
 │   └── api/                          # FastAPI Backend
 │       ├── app/
-│       │   ├── core/
-│       │   │   ├── config.py        # Configuration management
-│       │   │   ├── security.py      # Auth & security
-│       │   │   └── dependencies.py  # FastAPI dependencies
-│       │   ├── models/
-│       │   │   ├── detection.py     # YOLOv11 integration
-│       │   │   ├── ttc.py          # Time-to-Contact calculations
-│       │   │   └── video.py        # Video processing
-│       │   ├── routers/
-│       │   │   ├── __init__.py
-│       │   │   ├── videos.py       # Video upload/processing
-│       │   │   ├── detections.py   # Hazard detection
-│       │   │   ├── streams.py      # Live camera feeds
-│       │   │   └── auth.py         # Authentication
-│       │   ├── schemas/
-│       │   │   ├── video.py
-│       │   │   ├── detection.py
-│       │   │   └── user.py
+│       │   ├── api/
+│       │   │   ├── alert_routes.py  # Alert management endpoints
+│       │   │   ├── stream_routes.py # WebRTC streaming (in progress)
+│       │   │   └── upload_routes.py # Video upload/processing
+│       │   ├── agents/
+│       │   │   ├── alert_agent.py   # AI-powered alert generation
+│       │   │   ├── context_agent.py # Alert context analysis
+│       │   │   └── message_agent.py # Alert message generation
 │       │   ├── services/
-│       │   │   ├── supabase.py     # Supabase integration
-│       │   │   ├── video_processor.py
-│       │   │   └── notification.py
-│       │   └── main.py
-│       ├── scripts/
-│       │   ├── download_model.py
-│       │   └── train_model.py
-│       ├── tests/
-│       ├── requirements.txt
-│       └── Dockerfile
+│       │   │   ├── detection_service.py  # YOLOv11 detection
+│       │   │   └── video_service.py      # Video processing
+│       │   └── main.py              # FastAPI application
+│       ├── temp/                     # Temporary upload storage
+│       └── requirements.txt
 │
-├── packages/
-│   ├── types/                        # Shared TypeScript types
-│   │   ├── index.ts
-│   │   ├── hazard.ts
-│   │   ├── detection.ts
-│   │   └── video.ts
-│   ├── config/                       # Shared configs
-│   │   ├── eslint-config/
-│   │   └── tsconfig/
-│   └── utils/                        # Shared utilities
-│
-├── supabase/
-│   ├── migrations/
-│   │   ├── 20240101000000_initial_schema.sql
-│   │   ├── 20240101000001_add_videos_table.sql
-│   │   ├── 20240101000002_add_detections_table.sql
-│   │   └── 20240101000003_add_rls_policies.sql
-│   ├── functions/                    # Edge functions
-│   └── config.toml
-│
-├── .github/
-│   └── workflows/
-│       ├── ci.yml
-│       └── deploy.yml
 ├── pnpm-workspace.yaml
 ├── package.json
-├── turbo.json
 ├── .gitignore
-├── README.md
-└── claude.md
+├── README.md                         # Project documentation
+└── CLAUDE.md                         # This file - development context
 ```
 
 ## Core Components & Responsibilities
 
 ### Frontend (Next.js)
 
-**Video Player with Detection Overlay**
-- Display video with real-time bounding boxes
-- Color-coded overlays based on TTC warnings
-- Frame-by-frame scrubbing with detection timeline
-- Performance optimized with Canvas API
+**Pages**
+- **Home Page** (`/`): Landing page with feature overview and call-to-action buttons
+- **Documentation Page** (`/docs`): Comprehensive guide explaining system features, technology stack, and warning levels
+- **Video Analysis Page** (`/video`): Upload videos and view real-time detection results
+- **Stream Page** (`/stream`): Live camera feed analysis (in progress)
 
-**Video Uploader**
-- Drag-and-drop interface
-- Progress tracking with chunked uploads
-- Supabase Storage integration
-- Format validation (MP4, AVI, MOV)
+**Video Analysis Features**
+- **Video Upload Zone**: Drag-and-drop file upload with FormData submission
+- **Video Player with Detections**: HTML5 video player with overlaid bounding boxes
+- **Alert Timeline**: Interactive timeline showing all detections with filtering capabilities
+- **Alert Filters**: Filter by hazard type (bird, drone, etc.) and severity level
+- **Detection Display**: Real-time bounding box overlays synced with video playback
 
-**Live Stream Monitor**
-- WebRTC/WebSocket connection to camera feeds
-- Real-time detection overlay
-- Multi-camera grid view
-- Alert notifications for critical warnings
-
-**Dashboard & Analytics**
-- Detection history and statistics
-- Hazard type distribution charts
-- TTC trend analysis
-- Export functionality for reports
+**Layout Components**
+- **Header**: Navigation with links to Home (`/`) and Docs (`/docs`)
+- **Footer**: Links to GitHub (https://github.com/samiur-r) and Contact (samiur.rahman.akif@gmail.com)
 
 ### Backend (FastAPI)
 
-**Video Processing Pipeline**
-1. Video upload to Supabase Storage
-2. Frame extraction (OpenCV)
-3. Batch inference with YOLOv11
-4. Detection post-processing
-5. TTC calculation for each hazard
-6. Results stored in database
+**API Endpoints**
+- `POST /upload`: Upload video file for processing
+- `POST /analyze`: Analyze uploaded video and return detections
+- `GET /alerts/{alert_id}`: Retrieve alert details
+- `POST /stream/offer`: WebRTC connection for live streaming (in progress)
 
-**Real-time Stream Processing**
-1. WebSocket/RTSP stream ingestion
-2. Frame buffering and sampling
-3. Concurrent inference (async)
-4. Real-time results broadcast
-5. Alert generation for critical TTC
+**Video Processing Pipeline** (Implemented)
+1. Video upload via multipart/form-data
+2. Temporary storage in `/temp/uploads/`
+3. Video transcoding (if needed)
+4. Frame extraction using OpenCV
+5. YOLOv11 inference on each frame
+6. Detection aggregation and formatting
+7. Return JSON with detections and video metadata
+
+**AI-Powered Alert System** (Implemented)
+- **Alert Agent**: Orchestrates alert generation workflow
+- **Context Agent**: Analyzes detection patterns and provides context
+- **Message Agent**: Generates natural language alert descriptions
+- Uses Claude API for intelligent alert generation
 
 **YOLOv11 Detection Model**
-- Custom trained on sky hazard dataset
-- Classes: bird, drone, balloon, kite (with subclasses)
+- Pre-trained YOLOv11 model from Ultralytics
+- Detects: person, bicycle, car, motorcycle, airplane, bus, train, truck, bird, etc.
 - Confidence threshold: 0.5 (configurable)
-- IOU threshold: 0.45 for NMS
-- GPU inference for real-time performance
+- Returns: class, confidence, bounding box coordinates
 
-**Time-to-Contact Algorithm**
+**Future: Time-to-Contact Algorithm** (Planned)
 ```python
-# Pseudocode
+# Planned implementation
 def calculate_ttc(detection, previous_detection, fps, camera_params):
-    # Calculate object size change (using bounding box)
+    # Calculate object size change
     size_current = detection.bbox_area
     size_previous = previous_detection.bbox_area
 
-    # Estimate depth using similar triangles
+    # Estimate depth and approach speed
     depth_ratio = size_previous / size_current
-
-    # Calculate approach speed
     time_delta = 1 / fps
     approach_speed = (depth_ratio - 1) / time_delta
 
-    # TTC = distance / speed
+    # Calculate TTC
     ttc = estimate_distance(detection) / approach_speed
-
     return ttc, calculate_warning_level(ttc)
 ```
 
-## Database Schema
+## Data Storage
 
-### Tables
+### Current Implementation
+Currently, the application uses **file-based storage** without a persistent database:
 
-**users**
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT UNIQUE NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+**Video Storage**
+- Uploaded videos are stored temporarily in `apps/api/temp/uploads/`
+- Files are transcoded if necessary (e.g., H.264 codec conversion)
+- Video files are accessed directly by the frontend via file path
+
+**Detection Data**
+- Detections are computed on-demand during video analysis
+- Results are returned as JSON in the API response
+- No persistent storage of detection history
+
+**Alert Data**
+- Alerts are generated dynamically using AI agents
+- Stored temporarily during the analysis session
+- No long-term storage or history
+
+### Future Database Schema (Supabase - Planned)
+
+When implementing persistent storage, the following schema will be used:
 
 **videos**
 ```sql
@@ -258,8 +225,7 @@ CREATE TABLE videos (
   fps FLOAT,
   resolution TEXT,
   status TEXT CHECK (status IN ('uploading', 'processing', 'completed', 'failed')),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  processed_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
@@ -270,27 +236,12 @@ CREATE TABLE detections (
   video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
   frame_number INT NOT NULL,
   timestamp FLOAT NOT NULL,
-  hazard_type TEXT NOT NULL,
+  class TEXT NOT NULL,
   confidence FLOAT NOT NULL,
   bbox_x FLOAT NOT NULL,
   bbox_y FLOAT NOT NULL,
   bbox_width FLOAT NOT NULL,
   bbox_height FLOAT NOT NULL,
-  ttc FLOAT,
-  warning_level TEXT CHECK (warning_level IN ('green', 'yellow', 'orange', 'red')),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-**camera_feeds**
-```sql
-CREATE TABLE camera_feeds (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  stream_url TEXT NOT NULL,
-  status TEXT CHECK (status IN ('active', 'inactive', 'error')),
-  last_active TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
@@ -299,27 +250,13 @@ CREATE TABLE camera_feeds (
 ```sql
 CREATE TABLE alerts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  detection_id UUID REFERENCES detections(id) ON DELETE CASCADE,
-  camera_feed_id UUID REFERENCES camera_feeds(id),
+  video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
   severity TEXT CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+  message TEXT NOT NULL,
+  context TEXT,
   acknowledged BOOLEAN DEFAULT FALSE,
-  acknowledged_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
-
-### Row Level Security (RLS)
-
-Enable RLS on all tables and create policies:
-```sql
--- Users can only access their own data
-CREATE POLICY "Users can view own videos"
-  ON videos FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own videos"
-  ON videos FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
 ```
 
 ## Development Guidelines
@@ -562,19 +499,46 @@ async def upload_video(
 - Monitor GPU utilization
 - Review video resolution/bitrate
 
+## Current User Workflow
+
+1. **Landing** → User visits home page at `/`
+2. **Navigation** → Clicks "Upload Video" button or navigates to `/video`
+3. **Upload** → Drags and drops video file or clicks to browse
+4. **Processing** → Video is uploaded to backend, transcoded if needed, and analyzed with YOLOv11
+5. **Results** → Detection results displayed with:
+   - Video player with bounding box overlays
+   - Interactive alert timeline
+   - Filter controls by hazard type and severity
+   - AI-generated alert descriptions
+6. **Review** → User can scrub through video, filter alerts, and review detections
+
+## Key Configuration
+
+**Frontend Environment Variables** (`.env.local`)
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+**Backend Configuration**
+- FastAPI runs on port 8000
+- YOLOv11 model: `yolo11n.pt` (nano version)
+- Video storage: `apps/api/temp/uploads/`
+- Supported formats: MP4, AVI, MOV, MKV
+- Max file size: Limited by system memory
+
 ## Resources
 
 **Documentation**
 - Next.js: https://nextjs.org/docs
 - FastAPI: https://fastapi.tiangolo.com
 - YOLOv11: https://docs.ultralytics.com
-- Supabase: https://supabase.com/docs
 - shadcn/ui: https://ui.shadcn.com
+- Tailwind CSS: https://tailwindcss.com/docs
 
-**Community**
-- GitHub Discussions
-- Discord Server (TBD)
-- Stack Overflow tag: `skylaneai`
+**Project Links**
+- GitHub Repository: https://github.com/samiur-r/SkyLaneAI
+- Issues: https://github.com/samiur-r/SkyLaneAI/issues
+- Contact: samiur.rahman.akif@gmail.com
 
 ---
 

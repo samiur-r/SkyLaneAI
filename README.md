@@ -29,7 +29,7 @@ SkyLaneAI is an intelligent video analysis system designed to detect sky hazards
 ## Project Structure
 
 ```
-SkylaneAI-v2/
+SkyLaneAI/
 ├── apps/
 │   ├── web/                    # Next.js frontend application
 │   │   ├── app/                # App Router pages
@@ -57,20 +57,22 @@ SkylaneAI-v2/
 
 ## Features
 
-### 🎯 Core Features
-- **Real-time Hazard Detection**: Detect birds, drones, balloons, and kites in video streams
-- **Video Upload & Processing**: Analyze pre-recorded videos for hazard assessment
+### ✅ Currently Implemented
+- **Video Upload & Processing**: Upload and analyze pre-recorded videos for hazard detection
+- **Real-time Detection Display**: View detected hazards with bounding boxes and labels
+- **Alert Timeline**: Interactive timeline showing all detections throughout the video
+- **Detection Filtering**: Filter alerts by hazard type and severity level
+- **Responsive UI**: Modern, accessible interface built with shadcn/ui components
+- **Documentation**: Comprehensive docs page explaining the system and technology
+
+### 🚧 In Development
 - **Live Camera Feed**: Real-time analysis of camera feeds
-- **Bounding Box Overlays**: Visual indicators for detected hazards
 - **Time-to-Contact (TTC)**: Calculate collision risk and warning levels
 - **Graded Warnings**: Color-coded threat levels (Green, Yellow, Orange, Red)
-
-### 📊 Additional Features
 - **User Authentication**: Secure login and user management via Supabase
 - **Video History**: Store and review past analyses
 - **Dashboard Analytics**: Visualize detection statistics and patterns
 - **Multi-camera Support**: Monitor multiple feeds simultaneously
-- **Export Reports**: Generate detailed hazard reports
 
 ## Prerequisites
 
@@ -85,8 +87,8 @@ SkylaneAI-v2/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/SkylaneAI-v2.git
-cd SkylaneAI-v2
+git clone https://github.com/samiur-r/SkyLaneAI.git
+cd SkyLaneAI
 ```
 
 ### 2. Install Dependencies
@@ -164,6 +166,12 @@ The application will be available at:
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
+
+### Available Pages
+- **Home** (`/`): Landing page with feature overview
+- **Video Analysis** (`/video`): Upload and analyze videos for hazard detection
+- **Live Stream** (`/stream`): Real-time camera feed analysis (coming soon)
+- **Documentation** (`/docs`): Complete guide to SkyLaneAI features and technology
 
 ## API Endpoints
 
@@ -280,9 +288,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/yourusername/SkylaneAI-v2/issues
-- Documentation: https://docs.skylaneai.com
-- Email: support@skylaneai.com
+- GitHub Issues: https://github.com/samiur-r/SkyLaneAI/issues
+- Documentation: Available at `/docs` in the application
+- Email: samiur.rahman.akif@gmail.com
 
 ## Roadmap
 
