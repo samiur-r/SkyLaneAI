@@ -8,6 +8,7 @@ import cv2
 from ultralytics import YOLOWorld
 from app.core.config import settings
 from app.models.schemas import Detection, DetectionBox
+from app.utils.class_mapper import normalize_class_name
 
 
 class YOLOWorldDetector:
@@ -97,6 +98,8 @@ class YOLOWorldDetector:
                 conf = float(boxes.conf[i].cpu().numpy())
                 cls_id = int(boxes.cls[i].cpu().numpy())
                 cls_name = result.names[cls_id]
+                # Normalize class name (e.g., airplane -> drone)
+                cls_name = normalize_class_name(cls_name)
 
                 detection = Detection(
                     class_name=cls_name,
@@ -128,16 +131,14 @@ class YOLOWorldDetector:
         """
         annotated = image.copy()
 
-        # Color mapping for different classes
+        # Color mapping for different classes (using normalized names)
         class_colors = {
             'bird': (68, 68, 239),       # Red (BGR)
-            'drone': (11, 158, 245),     # Amber/Orange (BGR)
+            'drone': (11, 158, 245),     # Amber/Orange (BGR) - includes airplane, helicopter
             'balloon': (153, 72, 236),   # Pink/Purple (BGR)
-            'aircraft': (246, 130, 59),  # Blue (BGR)
-            'airplane': (246, 130, 59),  # Blue (BGR)
+            'kite': (166, 184, 20),      # Teal (BGR)
             'person': (129, 185, 16),    # Green (BGR)
             'car': (246, 92, 139),       # Purple (BGR)
-            'kite': (166, 184, 20),      # Teal (BGR)
         }
         default_color = (128, 123, 107)  # Gray (BGR)
 

@@ -13,13 +13,12 @@ class ContextEnrichmentAgent:
 
     # Size thresholds for different hazard types (in pixels^2)
     # These are calibrated for typical camera resolutions (1920x1080)
+    # Note: Class names are already normalized (airplane/helicopter -> drone)
     SIZE_THRESHOLDS = {
         "bird": {"small": 5000, "medium": 15000},
-        "drone": {"small": 8000, "medium": 20000},
+        "drone": {"small": 8000, "medium": 20000},  # Includes airplane, helicopter, quadcopter
         "balloon": {"small": 10000, "medium": 25000},
         "kite": {"small": 7000, "medium": 18000},
-        "airplane": {"small": 12000, "medium": 30000},
-        "sports ball": {"small": 6000, "medium": 12000},  # May be balloons
         # Default for unknown classes
         "default": {"small": 6000, "medium": 15000}
     }
