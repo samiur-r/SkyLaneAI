@@ -223,7 +223,7 @@ export default function VideoPage() {
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold">Video Detection</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Upload and analyze videos with YOLOv11 object detection
+            Upload and analyze videos with DETR object detection
           </p>
         </div>
       </header>

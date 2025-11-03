@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SkyLaneAI - Sky Hazard Detection",
-  description: "Advanced sky hazard detection system for flying taxis using YOLOv11",
+  description: "Advanced sky hazard detection system for flying taxis using DETR",
 };
 
 export default function RootLayout({

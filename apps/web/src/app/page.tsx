@@ -20,7 +20,7 @@ export default function Home() {
         </p>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
           Real-time detection of birds, drones, and airborne hazards using
-          state-of-the-art YOLOv11 technology
+          state-of-the-art DETR technology
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
           <Link href="/stream">
@@ -47,7 +47,7 @@ export default function Home() {
         <Card>
           <CardHeader>
             <CardTitle>Real-time Detection</CardTitle>
-            <CardDescription>YOLOv11-powered object detection</CardDescription>
+            <CardDescription>DETR-powered object detection</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">

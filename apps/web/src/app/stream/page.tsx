@@ -185,7 +185,7 @@ export default function StreamPage() {
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold">Live Detection Stream</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Real-time object detection with YOLOv11
+            Real-time object detection with DETR
           </p>
         </div>
       </header>
