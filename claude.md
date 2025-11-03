@@ -26,13 +26,13 @@ SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and ot
 - Async support for real-time video processing
 - Automatic API documentation (OpenAPI/Swagger)
 - High performance for ML inference
-- Native Python integration with YOLOv11
+- Native Python integration with YOLO-World
 
-**Object Detection: YOLOv11**
-- Pre-trained YOLOv11 model from Ultralytics
-- Real-time inference capabilities
-- Detects COCO classes: bird, kite, airplane, sports ball
-- Efficient GPU/CPU utilization
+**Object Detection: YOLO-World**
+- YOLO-World zero-shot detection from Ultralytics
+- Real-time inference capabilities with open-vocabulary detection
+- Custom classes: bird, drone, balloon, kite, person, car
+- Efficient GPU/CPU utilization with CLIP integration
 
 **AI Multi-Agent System: LangGraph + OpenAI**
 - **LangGraph**: Orchestrates agent workflow
@@ -116,7 +116,7 @@ SkyLaneAI/
 │       │   │   ├── message_agent.py # LLM-powered message generation
 │       │   │   └── priority_agent.py # Rule-based priority scoring
 │       │   ├── services/
-│       │   │   ├── detector.py      # YOLOv11 detection service
+│       │   │   ├── detector.py      # YOLO-World detection service
 │       │   │   ├── video_file_processor.py  # Video processing
 │       │   │   ├── video_stream.py  # Stream handling (in progress)
 │       │   │   └── webrtc_handler.py # WebRTC (in progress)
@@ -140,7 +140,7 @@ SkyLaneAI/
 ### Agent Workflow
 
 ```
-Video Frame → YOLOv11 Detection → Multi-Agent Pipeline → Alert
+Video Frame → YOLO-World Detection → Multi-Agent Pipeline → Alert
 ```
 
 **1. Context Agent (Rule-based)**
@@ -176,7 +176,7 @@ Video Frame → YOLOv11 Detection → Multi-Agent Pipeline → Alert
 ### Agent Communication
 
 Agents communicate through Pydantic schemas:
-- `Detection`: Raw YOLOv11 output
+- `Detection`: Raw YOLO-World output
 - `EnrichedContext`: Context agent output
 - `ActionRecommendation`: Action agent output
 - `CraftedMessage`: Message agent output
@@ -222,7 +222,7 @@ LLM agents use:
 1. Video upload via multipart/form-data
 2. Temporary storage in `/temp/uploads/`
 3. Frame extraction using OpenCV
-4. YOLOv11 inference on each frame
+4. YOLO-World zero-shot inference on each frame
 5. Detection aggregation and formatting
 6. Return JSON with detections and metadata
 
@@ -234,9 +234,9 @@ LLM agents use:
 5. Priority Agent scores alert urgency
 6. Return complete alert with all components
 
-**YOLOv11 Detection**
-- Model: `yolo11n.pt` (nano) or configurable
-- Detects: bird, kite, airplane, sports ball
+**YOLO-World Detection**
+- Model: `yolov8s-worldv2.pt` (or configurable YOLO-World variant)
+- Zero-shot detection with custom classes: bird, drone, balloon, kite, person, car
 - Confidence threshold: 0.25 (configurable)
 - Returns: class, confidence, bounding box coordinates
 
@@ -322,7 +322,7 @@ File-based storage without persistent database:
 - LLM timeout handling
 
 ### ML Model
-- YOLOv11 nano for speed (or configurable variant)
+- YOLO-World for zero-shot detection (or configurable variant)
 - GPU acceleration when available
 - Batch processing where possible
 
@@ -341,15 +341,15 @@ OPENAI_MODEL=gpt-4o-mini
 ALERT_GENERATION_TIMEOUT=30
 
 # Model configuration
-MODEL_NAME=yolo11n.pt
+MODEL_NAME=yolov8s-worldv2.pt
 MODELS_DIR=models
 MODEL_CACHE_ENABLED=true
 MODEL_DEVICE=cpu
 CONFIDENCE_THRESHOLD=0.25
 IOU_THRESHOLD=0.45
 
-# Sky hazard classes
-SKY_HAZARD_CLASSES=["bird", "kite", "airplane", "sports ball"]
+# Sky hazard classes (zero-shot YOLO-World)
+SKY_HAZARD_CLASSES=["bird", "drone", "balloon", "kite", "person", "car"]
 
 # CORS
 CORS_ORIGINS=["http://localhost:3000"]
@@ -406,7 +406,7 @@ DEFAULT_PROCESS_FPS=10
 1. **Landing** → User visits home page at `/`
 2. **Navigation** → Clicks "Upload Video" or navigates to `/video`
 3. **Upload** → Drags and drops video file
-4. **Processing** → Video analyzed with YOLOv11
+4. **Processing** → Video analyzed with YOLO-World zero-shot detection
 5. **AI Alert Generation** → Multi-agent system generates intelligent alerts
 6. **Results** → User sees:
    - Video player with bounding boxes
@@ -423,7 +423,7 @@ DEFAULT_PROCESS_FPS=10
 **Documentation**
 - Next.js: https://nextjs.org/docs
 - FastAPI: https://fastapi.tiangolo.com
-- YOLOv11: https://docs.ultralytics.com
+- YOLO-World: https://docs.ultralytics.com/models/yolo-world/
 - shadcn/ui: https://ui.shadcn.com
 - LangGraph: https://langchain-ai.github.io/langgraph/
 - OpenAI API: https://platform.openai.com/docs

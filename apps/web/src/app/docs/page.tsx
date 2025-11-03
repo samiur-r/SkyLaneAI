@@ -45,14 +45,14 @@ export default function DocsPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Eye className="w-6 h-6 text-primary" />
-                <CardTitle>YOLOv11 Detection</CardTitle>
+                <CardTitle>YOLO-World Detection</CardTitle>
               </div>
-              <CardDescription>Real-time object detection</CardDescription>
+              <CardDescription>Zero-shot object detection</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Advanced object detection using YOLOv11, capable of identifying
-                birds, drones (detected as airplanes), kites, and balloons (detected as sports balls)
+                Advanced zero-shot object detection using YOLO-World, capable of identifying
+                custom classes including birds, drones, balloons, and kites
                 with high accuracy and minimal latency.
               </p>
             </CardContent>
@@ -187,8 +187,8 @@ export default function DocsPage() {
               <div>
                 <h3 className="text-xl font-semibold mb-2">2. Object Detection</h3>
                 <p className="text-muted-foreground">
-                  Each video frame is analyzed using YOLOv11 to identify potential sky hazards including
-                  birds, kites, airplanes (drones), and sports balls (balloons).
+                  Each video frame is analyzed using YOLO-World zero-shot detection to identify potential
+                  sky hazards including birds, drones, balloons, and kites using custom-defined classes.
                 </p>
               </div>
 
@@ -282,7 +282,7 @@ export default function DocsPage() {
                 <h3 className="text-lg font-semibold mb-2">Backend</h3>
                 <ul className="space-y-1 text-muted-foreground">
                   <li>• FastAPI (Python)</li>
-                  <li>• YOLOv11 object detection</li>
+                  <li>• YOLO-World zero-shot detection</li>
                   <li>• OpenCV for video processing</li>
                   <li>• File-based storage (temporary)</li>
                 </ul>

@@ -20,7 +20,7 @@ SkyLaneAI protects flying taxis and aerial vehicles from collisions by detecting
 ## How It Works
 
 1. **Upload** a video through the web interface
-2. **AI analyzes** each frame using advanced object detection (YOLOv11)
+2. **AI analyzes** each frame using advanced zero-shot object detection (YOLO-World)
 3. **Multi-agent system** processes detections through specialized LangGraph agents:
    - **Alert Agent**: Orchestrates the analysis workflow
    - **Context Agent**: Analyzes detection patterns and environmental context
@@ -87,7 +87,7 @@ Visit [http://localhost:3000](http://localhost:3000) to start using SkyLaneAI.
 ## Technology Stack
 
 - **Frontend**: Next.js, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: FastAPI (Python), YOLOv11, OpenCV
+- **Backend**: FastAPI (Python), YOLO-World, OpenCV
 - **AI Multi-Agent System**:
   - **LangGraph**: Agent orchestration and workflow management
   - **OpenAI GPT**: Powers intelligent decision-making across specialized agents
