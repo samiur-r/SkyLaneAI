@@ -35,10 +35,12 @@ export default function Home() {
               Upload Video
             </Button>
           </Link>
+          <Link href="/docs">
           <Button size="lg" variant="outline">
             <Video className="w-5 h-5 mr-2" />
             Learn More
           </Button>
+          </Link>
         </div>
       </section>
 

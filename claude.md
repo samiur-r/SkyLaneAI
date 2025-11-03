@@ -4,7 +4,7 @@
 
 ## Project Vision
 
-SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and other aerial vehicles from sky hazards. The system analyzes video feeds in real-time to detect birds, drones, balloons, and kites, calculating Time-to-Contact (TTC) to provide graded collision warnings.
+SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and other aerial vehicles from sky hazards. The system analyzes video feeds to detect birds, drones, balloons, and kites, providing intelligent AI-powered alerts through a sophisticated multi-agent system.
 
 ## Architecture Overview
 
@@ -29,15 +29,19 @@ SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and ot
 - Native Python integration with YOLOv11
 
 **Object Detection: YOLOv11**
-- Latest YOLO version with improved accuracy
+- Pre-trained YOLOv11 model from Ultralytics
 - Real-time inference capabilities
-- Custom training for sky hazard detection
-- Efficient GPU utilization
+- Detects COCO classes: bird, kite, airplane, sports ball
+- Efficient GPU/CPU utilization
 
-**AI Framework: LangGraph + OpenAI**
-- AI agent orchestration for intelligent alerts
-- Context-aware alert generation
-- Natural language alert descriptions
+**AI Multi-Agent System: LangGraph + OpenAI**
+- **LangGraph**: Orchestrates agent workflow
+- **OpenAI GPT**: Powers intelligent decision-making
+- **Specialized Agents**:
+  - **Context Agent** (Rule-based): Analyzes detection patterns, size, position, and calculates initial threat levels
+  - **Action Agent** (LLM-powered): Provides actionable pilot recommendations
+  - **Message Agent** (LLM-powered): Generates natural language alert messages
+  - **Priority Agent** (Rule-based): Scores and ranks alerts by urgency
 
 **Monorepo: pnpm**
 - Fast, efficient package management
@@ -52,7 +56,11 @@ SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and ot
 - **Real-time Detection Display**: Video player with bounding boxes and detection labels
 - **Alert Timeline**: Interactive timeline showing all detections throughout the video
 - **Detection Filtering**: Filter alerts by hazard type and severity level
-- **AI-Powered Alert System**: Context-aware alert generation with message agents
+- **Multi-Agent AI System**: Four specialized agents working together:
+  - Context enrichment with size/position/threat analysis
+  - LLM-powered action recommendations for pilots
+  - Natural language message generation
+  - Priority scoring and alert ranking
 - **Responsive UI**: Modern interface built with shadcn/ui components
 - **Documentation Page**: Comprehensive docs at `/docs` explaining features and technology
 - **Layout Components**: Header with Home/Docs navigation, Footer with GitHub and contact links
@@ -98,133 +106,164 @@ SkyLaneAI/
 │   └── api/                          # FastAPI Backend
 │       ├── app/
 │       │   ├── api/
-│       │   │   ├── alert_routes.py  # Alert management endpoints
-│       │   │   ├── stream_routes.py # WebRTC streaming (in progress)
-│       │   │   └── upload_routes.py # Video upload/processing
+│       │   │   ├── routes.py        # Main video processing routes
+│       │   │   ├── alert_routes.py  # Alert generation endpoints
+│       │   │   ├── video_routes.py  # Video upload endpoints
+│       │   │   └── stream_routes.py # WebRTC streaming (in progress)
 │       │   ├── agents/
-│       │   │   ├── alert_agent.py   # AI-powered alert generation
-│       │   │   ├── context_agent.py # Alert context analysis
-│       │   │   └── message_agent.py # Alert message generation
+│       │   │   ├── context_agent.py # Rule-based context enrichment
+│       │   │   ├── action_agent.py  # LLM-powered action recommendations
+│       │   │   ├── message_agent.py # LLM-powered message generation
+│       │   │   └── priority_agent.py # Rule-based priority scoring
 │       │   ├── services/
-│       │   │   ├── detection_service.py  # YOLOv11 detection
-│       │   │   └── video_service.py      # Video processing
+│       │   │   ├── detector.py      # YOLOv11 detection service
+│       │   │   ├── video_file_processor.py  # Video processing
+│       │   │   ├── video_stream.py  # Stream handling (in progress)
+│       │   │   └── webrtc_handler.py # WebRTC (in progress)
+│       │   ├── models/
+│       │   │   └── schemas.py       # Pydantic models
+│       │   ├── core/
+│       │   │   └── config.py        # Configuration
 │       │   └── main.py              # FastAPI application
-│       ├── temp/                     # Temporary upload storage
+│       ├── temp/                    # Temporary upload storage
 │       └── requirements.txt
 │
 ├── pnpm-workspace.yaml
 ├── package.json
 ├── .gitignore
-├── README.md                         # Project documentation
-└── CLAUDE.md                         # This file - development context
+├── README.md                        # Project documentation
+└── CLAUDE.md                        # This file - development context
 ```
+
+## Multi-Agent System Architecture
+
+### Agent Workflow
+
+```
+Video Frame → YOLOv11 Detection → Multi-Agent Pipeline → Alert
+```
+
+**1. Context Agent (Rule-based)**
+- Analyzes bounding box size and calculates area
+- Determines screen position (upper-left, center, etc.)
+- Estimates size category (small, medium, large)
+- Calculates initial threat level (low, moderate, high, critical)
+- Fast, deterministic, no API costs
+
+**2. Action Agent (LLM-powered via OpenAI)**
+- Receives detection + enriched context
+- Generates PRIMARY and SECONDARY action recommendations
+- Provides REASONING for recommendations
+- Determines URGENCY level (advisory, caution, urgent, immediate)
+- Uses aviation safety protocols
+
+**3. Message Agent (LLM-powered via OpenAI)**
+- Creates natural language alert messages
+- Formats message with title, emoji, and structured sections
+- Includes Detection Details and Threat Assessment
+- Generates fallback messages if LLM fails
+- Professional, aviation-focused tone
+
+**4. Priority Agent (Rule-based)**
+- Scores alerts using weighted system:
+  - Threat level (40%)
+  - Action urgency (30%)
+  - Confidence (20%)
+  - Size (10%)
+- Ranks multiple alerts by priority
+- Helps pilots focus on critical threats first
+
+### Agent Communication
+
+Agents communicate through Pydantic schemas:
+- `Detection`: Raw YOLOv11 output
+- `EnrichedContext`: Context agent output
+- `ActionRecommendation`: Action agent output
+- `CraftedMessage`: Message agent output
+- `PriorityScore`: Priority agent output
+
+### Configuration
+
+LLM agents use:
+- Model: Configurable via `OPENAI_MODEL` (default: gpt-4o-mini)
+- Temperature: Low (0.2-0.3) for consistent safety recommendations
+- Timeout: Configurable via `ALERT_GENERATION_TIMEOUT`
+- Fallback: Rule-based logic if LLM fails
 
 ## Core Components & Responsibilities
 
 ### Frontend (Next.js)
 
 **Pages**
-- **Home Page** (`/`): Landing page with feature overview and call-to-action buttons
-- **Documentation Page** (`/docs`): Comprehensive guide explaining system features, technology stack, and warning levels
-- **Video Analysis Page** (`/video`): Upload videos and view real-time detection results
-- **Stream Page** (`/stream`): Live camera feed analysis (in progress)
+- **Home Page** (`/`): Landing page with feature overview
+- **Documentation Page** (`/docs`): Comprehensive guide
+- **Video Analysis Page** (`/video`): Upload and analyze videos
+- **Stream Page** (`/stream`): Live camera feed (in progress)
 
 **Video Analysis Features**
-- **Video Upload Zone**: Drag-and-drop file upload with FormData submission
+- **Video Upload Zone**: Drag-and-drop file upload
 - **Video Player with Detections**: HTML5 video player with overlaid bounding boxes
-- **Alert Timeline**: Interactive timeline showing all detections with filtering capabilities
-- **Alert Filters**: Filter by hazard type (bird, drone, etc.) and severity level
-- **Detection Display**: Real-time bounding box overlays synced with video playback
+- **Alert Timeline**: Interactive timeline with filtering
+- **Alert Filters**: Filter by hazard type and severity
+- **Detection Display**: Real-time bounding box overlays
 
 **Layout Components**
-- **Header**: Navigation with links to Home (`/`) and Docs (`/docs`)
-- **Footer**: Links to GitHub (https://github.com/samiur-r) and Contact (samiur.rahman.akif@gmail.com)
+- **Header**: Navigation to Home (`/`) and Docs (`/docs`)
+- **Footer**: GitHub link and contact email
 
 ### Backend (FastAPI)
 
 **API Endpoints**
-- `POST /upload`: Upload video file for processing
-- `POST /analyze`: Analyze uploaded video and return detections
-- `GET /alerts/{alert_id}`: Retrieve alert details
-- `POST /stream/offer`: WebRTC connection for live streaming (in progress)
+- `POST /process-video`: Upload and analyze video
+- `POST /generate-alert`: Generate AI alert for detection
+- `GET /health`: Health check endpoint
 
-**Video Processing Pipeline** (Implemented)
+**Video Processing Pipeline**
 1. Video upload via multipart/form-data
 2. Temporary storage in `/temp/uploads/`
-3. Video transcoding (if needed)
-4. Frame extraction using OpenCV
-5. YOLOv11 inference on each frame
-6. Detection aggregation and formatting
-7. Return JSON with detections and video metadata
+3. Frame extraction using OpenCV
+4. YOLOv11 inference on each frame
+5. Detection aggregation and formatting
+6. Return JSON with detections and metadata
 
-**AI-Powered Alert System** (Implemented)
-- **Alert Agent**: Orchestrates alert generation workflow
-- **Context Agent**: Analyzes detection patterns and provides context
-- **Message Agent**: Generates natural language alert descriptions
-- Uses Claude API for intelligent alert generation
+**Alert Generation Pipeline**
+1. Receive detection data
+2. Context Agent enriches with contextual analysis
+3. Action Agent generates pilot recommendations (LLM)
+4. Message Agent crafts natural language alert (LLM)
+5. Priority Agent scores alert urgency
+6. Return complete alert with all components
 
-**YOLOv11 Detection Model**
-- Pre-trained YOLOv11 model from Ultralytics
-- Detects: person, bicycle, car, motorcycle, airplane, bus, train, truck, bird, etc.
-- Confidence threshold: 0.5 (configurable)
+**YOLOv11 Detection**
+- Model: `yolo11n.pt` (nano) or configurable
+- Detects: bird, kite, airplane, sports ball
+- Confidence threshold: 0.25 (configurable)
 - Returns: class, confidence, bounding box coordinates
-
-**Future: Time-to-Contact Algorithm** (Planned)
-```python
-# Planned implementation
-def calculate_ttc(detection, previous_detection, fps, camera_params):
-    # Calculate object size change
-    size_current = detection.bbox_area
-    size_previous = previous_detection.bbox_area
-
-    # Estimate depth and approach speed
-    depth_ratio = size_previous / size_current
-    time_delta = 1 / fps
-    approach_speed = (depth_ratio - 1) / time_delta
-
-    # Calculate TTC
-    ttc = estimate_distance(detection) / approach_speed
-    return ttc, calculate_warning_level(ttc)
-```
 
 ## Data Storage
 
 ### Current Implementation
-Currently, the application uses **file-based storage** without a persistent database:
+File-based storage without persistent database:
 
 **Video Storage**
-- Uploaded videos are stored temporarily in `apps/api/temp/uploads/`
-- Files are transcoded if necessary (e.g., H.264 codec conversion)
-- Video files are accessed directly by the frontend via file path
+- Uploaded videos stored temporarily in `apps/api/temp/uploads/`
+- Videos accessible directly by frontend via file path
+- Automatic cleanup recommended (not currently implemented)
 
 **Detection Data**
-- Detections are computed on-demand during video analysis
-- Results are returned as JSON in the API response
-- No persistent storage of detection history
+- Computed on-demand during video analysis
+- Results returned as JSON in API response
+- No persistent storage
 
 **Alert Data**
-- Alerts are generated dynamically using AI agents
-- Stored temporarily during the analysis session
-- No long-term storage or history
+- Generated dynamically using AI agents
+- Stored temporarily during analysis session
+- No long-term storage
 
 ### Future Enhancements (Planned)
-
-When implementing persistent storage, consider:
-
-**Video Storage**
-- Cloud storage integration (S3, Azure Blob, etc.)
-- Video metadata database
-- Historical analysis retrieval
-
-**Detection History**
+- Cloud storage integration (S3, Azure Blob)
 - Time-series database for detection patterns
-- Analytics on detection frequency and trends
-- Historical comparison and insights
-
-**Alert Management**
 - Alert history and acknowledgment tracking
-- Severity-based alert routing
-- Integration with notification systems
 
 ## Development Guidelines
 
@@ -233,7 +272,6 @@ When implementing persistent storage, consider:
 **TypeScript/JavaScript**
 - Use functional components with hooks
 - Prefer named exports over default exports
-- Use const for immutable values
 - Implement proper error boundaries
 - Add JSDoc comments for complex functions
 
@@ -244,64 +282,12 @@ When implementing persistent storage, consider:
 - Proper exception handling
 - Docstrings for all public functions
 
-### Component Patterns
-
-**React Components**
-```typescript
-// components/video/video-player.tsx
-interface VideoPlayerProps {
-  videoUrl: string;
-  detections: Detection[];
-  onTimeUpdate?: (time: number) => void;
-}
-
-export function VideoPlayer({
-  videoUrl,
-  detections,
-  onTimeUpdate
-}: VideoPlayerProps) {
-  // Implementation
-}
-```
-
-**FastAPI Routers**
-```python
-# routers/videos.py
-from fastapi import APIRouter, Depends, UploadFile
-from app.schemas.video import VideoResponse
-from app.core.dependencies import get_current_user
-
-router = APIRouter(prefix="/api/v1/videos", tags=["videos"])
-
-@router.post("/upload", response_model=VideoResponse)
-async def upload_video(
-    file: UploadFile,
-    user = Depends(get_current_user)
-):
-    # Implementation
-    pass
-```
-
-### State Management
-
-**Frontend State**
-- React Context for global state (theme, preferences)
-- React Query for server state (videos, detections)
-- Local state for UI interactions
-- WebSocket for real-time updates (in development)
-
-**Backend State**
-- Stateless API design
-- File-based temporary storage for current session
-- Redis for caching (optional, future)
-- WebSocket for real-time connections (in development)
-
 ### Testing Strategy
 
 **Frontend Tests**
 - Unit: Jest + React Testing Library
 - Integration: Playwright
-- E2E: Playwright end-to-end testing
+- E2E: Playwright
 
 **Backend Tests**
 - Unit: pytest with mocking
@@ -310,26 +296,16 @@ async def upload_video(
 
 ### Security Considerations
 
-**Authentication** (Planned)
-- JWT-based authentication
-- Secure token management
-- Session handling
-
-**Authorization** (Planned)
-- API endpoint guards with dependencies
-- Role-based access control (RBAC)
-- Request rate limiting
-
-**Data Privacy**
-- Temporary file storage with automatic cleanup
-- HTTPS for all communications
-- Secure API key management (OpenAI API)
-
 **API Security**
-- Rate limiting (FastAPI middleware)
+- Rate limiting (planned)
 - CORS configuration
 - Input validation with Pydantic
-- SQL injection prevention (ORM/parameterized queries)
+- Secure API key management (OpenAI)
+
+**Data Privacy**
+- Temporary file storage
+- HTTPS for all communications
+- No persistent user data currently
 
 ## Performance Optimization
 
@@ -338,159 +314,109 @@ async def upload_video(
 - Code splitting with dynamic imports
 - Lazy loading for components
 - Memoization for expensive computations
-- Virtual scrolling for large lists
 
 ### Backend
 - Async video processing
-- Batch inference for efficiency
-- WebSocket for real-time data
-- Database query optimization (indexes)
-- CDN for video delivery
+- Model caching (YOLO models cached locally)
+- Frame sampling for efficiency
+- LLM timeout handling
 
 ### ML Model
-- TensorRT optimization (GPU)
-- Model quantization (INT8)
+- YOLOv11 nano for speed (or configurable variant)
+- GPU acceleration when available
 - Batch processing where possible
-- Frame sampling for non-critical scenarios
 
-## Deployment Considerations
+## Environment Variables
 
-**Frontend (Vercel)**
-- Automatic deployments from main branch
-- Preview deployments for PRs
-- Environment variables in Vercel dashboard
-- Edge functions for API routes
-
-**Backend (Options)**
-1. **Render**: Simple deployment with free tier
-2. **Docker + Cloud Run**: Serverless containers
-3. **AWS EC2 + GPU**: Dedicated inference server
-4. **Kubernetes**: Scalable cluster deployment
-
-## Monitoring & Observability
-
-**Application Monitoring**
-- Error tracking: Sentry
-- Performance: Vercel Analytics
-- Logs: CloudWatch or application logs
-
-**Model Monitoring**
-- Inference latency tracking
-- Detection accuracy metrics
-- False positive/negative rates
-- Model drift detection
-
-## Future Enhancements
-
-**Phase 2**
-- Mobile app (React Native)
-- Advanced analytics dashboard
-- Multi-model ensemble
-- 3D trajectory prediction
-
-**Phase 3**
-- Weather integration
-- Drone traffic management integration
-- Predictive hazard modeling
-- Real-time notification system (SMS/Push)
-
-## API Design Principles
-
-**RESTful Conventions**
-- Noun-based endpoints
-- Proper HTTP methods (GET, POST, PUT, DELETE)
-- Meaningful status codes
-- Pagination for list endpoints
-
-**Response Format**
-```json
-{
-  "success": true,
-  "data": {},
-  "error": null,
-  "meta": {
-    "page": 1,
-    "total": 100
-  }
-}
+### Frontend (.env.local in apps/web)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-**Versioning**
-- URL-based versioning: `/api/v1/`
-- Maintain backward compatibility
-- Deprecation notices in headers
+### Backend (.env in apps/api)
+```env
+# OpenAI API for alert generation
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
+ALERT_GENERATION_TIMEOUT=30
+
+# Model configuration
+MODEL_NAME=yolo11n.pt
+MODELS_DIR=models
+MODEL_CACHE_ENABLED=true
+MODEL_DEVICE=cpu
+CONFIDENCE_THRESHOLD=0.25
+IOU_THRESHOLD=0.45
+
+# Sky hazard classes
+SKY_HAZARD_CLASSES=["bird", "kite", "airplane", "sports ball"]
+
+# CORS
+CORS_ORIGINS=["http://localhost:3000"]
+
+# Video settings
+MAX_UPLOAD_SIZE=10485760  # 10MB
+DEFAULT_PROCESS_FPS=10
+```
 
 ## Common Development Tasks
 
-### Adding a New Hazard Type
-1. Update YOLOv11 training data
-2. Retrain model with new class
-3. Update detection schema
-4. Add UI components for new type
-5. Update documentation
+### Adding a New Agent
+1. Create agent class in `apps/api/app/agents/`
+2. Define input/output schemas in `models/schemas.py`
+3. Implement agent logic (rule-based or LLM-powered)
+4. Add agent to workflow in alert routes
+5. Write unit tests
+6. Update documentation
 
 ### Adding a New API Endpoint
-1. Define Pydantic schema
-2. Create router function
-3. Add authentication/authorization
+1. Define Pydantic schema in `models/schemas.py`
+2. Create router function in `api/`
+3. Add route to `main.py`
 4. Write unit tests
 5. Update API documentation
 
 ### Adding a New UI Component
-1. Create component with TypeScript
+1. Create component in `apps/web/components/`
 2. Add to shadcn/ui if reusable
-3. Write Storybook story (optional)
+3. Import and use in pages
 4. Add unit tests
 5. Document props with JSDoc
 
 ## Troubleshooting
 
 **Video Upload Issues**
-- Verify temporary upload directory exists and has write permissions
-- Check file size limits (default: 100MB)
+- Verify temp directory exists: `apps/api/temp/uploads/`
+- Check file size limits (10MB default)
 - Ensure correct MIME types (mp4, avi, mov, mkv)
-- Check available disk space
 
-**Detection Accuracy Problems**
-- Verify model confidence threshold (default: 0.25)
-- Check lighting conditions in video
-- Ensure YOLO model is loaded correctly
+**Detection Issues**
+- Verify YOLO model downloaded in `models/` directory
+- Check confidence threshold (default: 0.25)
 - Review SKY_HAZARD_CLASSES configuration
-- Try different YOLO model variants
 
-**Performance Issues**
-- Profile with browser DevTools
-- Monitor GPU/CPU utilization
-- Review video resolution/bitrate
-- Check YOLO model size (nano vs large)
-- Verify OpenCV and video codec compatibility
+**Alert Generation Issues**
+- Verify OPENAI_API_KEY is set
+- Check OpenAI API quota/rate limits
+- Review timeout settings (default: 30s)
+- Check fallback messages if LLM fails
 
 ## Current User Workflow
 
 1. **Landing** → User visits home page at `/`
-2. **Navigation** → Clicks "Upload Video" button or navigates to `/video`
-3. **Upload** → Drags and drops video file or clicks to browse
-4. **Processing** → Video is uploaded to backend, transcoded if needed, and analyzed with YOLOv11
-5. **Results** → Detection results displayed with:
-   - Video player with bounding box overlays
+2. **Navigation** → Clicks "Upload Video" or navigates to `/video`
+3. **Upload** → Drags and drops video file
+4. **Processing** → Video analyzed with YOLOv11
+5. **AI Alert Generation** → Multi-agent system generates intelligent alerts
+6. **Results** → User sees:
+   - Video player with bounding boxes
    - Interactive alert timeline
-   - Filter controls by hazard type and severity
-   - AI-generated alert descriptions
-6. **Review** → User can scrub through video, filter alerts, and review detections
-
-## Key Configuration
-
-**Frontend Environment Variables** (`.env.local`)
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-**Backend Configuration**
-- FastAPI runs on port 8000
-- YOLOv11 model: `yolo11n.pt` (nano version)
-- Video storage: `apps/api/temp/uploads/`
-- Supported formats: MP4, AVI, MOV, MKV
-- Max file size: Limited by system memory
+   - AI-generated alert messages with:
+     - Natural language descriptions
+     - Actionable pilot recommendations
+     - Priority scores
+     - Threat assessments
+   - Filter controls
 
 ## Resources
 
@@ -499,13 +425,14 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - FastAPI: https://fastapi.tiangolo.com
 - YOLOv11: https://docs.ultralytics.com
 - shadcn/ui: https://ui.shadcn.com
-- Tailwind CSS: https://tailwindcss.com/docs
+- LangGraph: https://langchain-ai.github.io/langgraph/
+- OpenAI API: https://platform.openai.com/docs
 
 **Project Links**
-- GitHub Repository: https://github.com/samiur-r/SkyLaneAI
+- GitHub: https://github.com/samiur-r/SkyLaneAI
 - Issues: https://github.com/samiur-r/SkyLaneAI/issues
 - Contact: samiur.rahman.akif@gmail.com
 
 ---
 
-This document should be updated as the project evolves. When making significant architectural changes, update this file to reflect the new design decisions.
+**Note**: TTC (Time-to-Contact) calculation and graded warning system (Green/Yellow/Orange/Red) are planned features, not yet implemented. Current implementation focuses on detection and AI-powered alert generation.
