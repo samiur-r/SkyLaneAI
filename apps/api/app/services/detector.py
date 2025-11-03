@@ -1,19 +1,20 @@
-"""Detection service - supports YOLO and DETR models"""
+"""Detection service using YOLO-World"""
 import os
 import time
 from pathlib import Path
 from typing import Any
 import numpy as np
 import cv2
+from ultralytics import YOLOWorld
 from app.core.config import settings
 from app.models.schemas import Detection, DetectionBox
 
 
-class YOLODetector:
-    """YOLO-based object detector"""
+class YOLOWorldDetector:
+    """YOLO-World open-vocabulary object detector"""
 
     def __init__(self):
-        """Initialize the YOLO model"""
+        """Initialize the YOLO-World model"""
         self.model = None
         self.model_path = None
         self.load_model()
@@ -35,32 +36,36 @@ class YOLODetector:
             return settings.MODEL_NAME
 
     def load_model(self) -> None:
-        """Load the YOLO model with caching support"""
+        """Load the YOLO-World model with caching support"""
         try:
             self.model_path = self._get_model_path()
 
             # Check if model exists in cache
             if settings.MODEL_CACHE_ENABLED and os.path.exists(self.model_path):
-                print(f"✓ Loading cached YOLO model from: {self.model_path}")
+                print(f"✓ Loading cached YOLO-World model from: {self.model_path}")
             else:
-                print(f"✓ Downloading YOLO model: {settings.MODEL_NAME}")
+                print(f"✓ Downloading YOLO-World model: {settings.MODEL_NAME}")
                 if settings.MODEL_CACHE_ENABLED:
                     print(f"  Will be cached to: {self.model_path}")
 
-            # Load the model (will download if not exists)
-            self.model = YOLO(self.model_path)
+            # Load the YOLO-World model (will download if not exists)
+            self.model = YOLOWorld(self.model_path)
+
+            # Set custom classes for aerial hazard detection (zero-shot)
+            self.model.set_classes(settings.SKY_HAZARD_CLASSES)
+            print(f"✓ YOLO-World configured for classes: {', '.join(settings.SKY_HAZARD_CLASSES)}")
 
             # Move model to specified device (CPU or GPU)
             self.model.to(settings.MODEL_DEVICE)
-            print(f"✓ YOLO model loaded successfully on device: {settings.MODEL_DEVICE}")
+            print(f"✓ YOLO-World model loaded successfully on device: {settings.MODEL_DEVICE}")
 
         except Exception as e:
-            print(f"✗ Error loading YOLO model: {e}")
+            print(f"✗ Error loading YOLO-World model: {e}")
             raise
 
     def detect(self, image: np.ndarray) -> tuple[list[Detection], float]:
         """
-        Perform object detection on an image
+        Perform object detection on an image using YOLO-World
 
         Args:
             image: Input image as numpy array (BGR format)
@@ -73,8 +78,8 @@ class YOLODetector:
 
         start_time = time.time()
 
-        # Run inference
-        results = self.model(
+        # Run inference with YOLO-World (zero-shot detection)
+        results = self.model.predict(
             image,
             conf=settings.CONFIDENCE_THRESHOLD,
             iou=settings.IOU_THRESHOLD,
@@ -82,18 +87,8 @@ class YOLODetector:
             verbose=False
         )
 
-        # Parse results and filter by sky hazard classes
+        # Parse results - YOLO-World returns detections for configured classes
         detections = []
-        sky_hazard_classes = settings.SKY_HAZARD_CLASSES
-
-        # DISABLED: Class mapping causes misclassification in real videos
-        # Since YOLO isn't trained on drones, it misidentifies objects
-        # Better to show actual YOLO detections without mapping
-        # class_mapping = {
-        #     'kite': 'drone',
-        #     'airplane': 'drone',
-        #     'sports ball': 'balloon'
-        # }
 
         for result in results:
             boxes = result.boxes
@@ -103,16 +98,8 @@ class YOLODetector:
                 cls_id = int(boxes.cls[i].cpu().numpy())
                 cls_name = result.names[cls_id]
 
-                # Filter: Only include sky hazard classes
-                # If SKY_HAZARD_CLASSES is empty, include all detections
-                if sky_hazard_classes and cls_name not in sky_hazard_classes:
-                    continue
-
-                # Use original class name without mapping
-                mapped_class_name = cls_name
-
                 detection = Detection(
-                    class_name=mapped_class_name,
+                    class_name=cls_name,
                     class_id=cls_id,
                     confidence=conf,
                     bbox=DetectionBox(
@@ -200,12 +187,6 @@ class YOLODetector:
         return annotated
 
 
-# Select and initialize detector based on config
-if settings.MODEL_TYPE.lower() == "detr":
-    print(f"✓ Using DETR (Detection Transformer) model")
-    from app.services.detr_detector import detr_detector
-    detector = detr_detector
-else:
-    print(f"✓ Using YOLO model: {settings.MODEL_NAME}")
-    from ultralytics import YOLO
-    detector = YOLODetector()
+# Initialize YOLO-World detector
+print(f"✓ Using YOLO-World model: {settings.MODEL_NAME}")
+detector = YOLOWorldDetector()

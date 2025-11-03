@@ -38,24 +38,24 @@ class Settings(BaseSettings):
 
     # Model Settings
     MODELS_DIR: str = "models"  # Directory to store model files
-    MODEL_TYPE: str = "detr"  # Model type: "yolo" or "detr"
-    MODEL_NAME: str = "yolo11l.pt"  # YOLO model filename (used if MODEL_TYPE=yolo)
+    MODEL_NAME: str = "yolov8l-world.pt"  # YOLO-World model filename
     MODEL_CACHE_ENABLED: bool = True  # Cache models to avoid re-downloading
     MODEL_DEVICE: str = "cpu"  # Device to run model on: "cpu", "cuda", or "cuda:0"
-    CONFIDENCE_THRESHOLD: float = 0.25
+    CONFIDENCE_THRESHOLD: float = 0.15  # Lower threshold for small objects
     IOU_THRESHOLD: float = 0.45
 
-    # Sky Hazard Detection Settings
-    # Only detect these classes (sky hazards). Set to empty list to detect all classes.
-    # COCO classes that might appear in sky: bird, kite, airplane (aircraft)
-    # Note: COCO doesn't have "drone" or "balloon" as separate classes, but:
-    # - Drones may be detected as "airplane" or "kite"
-    # - Balloons may be detected as "kite" or "sports ball"
+    # Sky Hazard Detection Settings - YOLO-World Zero-Shot Classes
+    # YOLO-World can detect ANY class using open-vocabulary detection
+    # Use descriptive prompts for better accuracy
     SKY_HAZARD_CLASSES: list[str] = [
-        "bird",
-        "kite",
-        "airplane",
-        "sports ball"  # May detect balloons
+        "drone",                    # Quadcopter, UAV
+        "quadcopter",               # Alternative for drone
+        "bird",                     # Flying bird
+        "airplane",                 # Aircraft, plane
+        "helicopter",               # Helicopter, chopper
+        "hot air balloon",          # Balloon
+        "weather balloon",          # Weather balloon
+        "kite"                      # Kite
     ]
 
     # Video Streaming Settings

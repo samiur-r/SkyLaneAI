@@ -1,6 +1,6 @@
 # SkyLaneAI v2 - Claude Development Context
 
-**Last Updated**: 2025-11-02
+**Last Updated**: 2025-11-03
 
 ## Project Vision
 
@@ -34,11 +34,10 @@ SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and ot
 - Custom training for sky hazard detection
 - Efficient GPU utilization
 
-**Database & Auth: Supabase**
-- PostgreSQL database with real-time subscriptions
-- Built-in authentication and authorization
-- Storage for video files
-- RESTful and GraphQL APIs
+**AI Framework: LangGraph + OpenAI**
+- AI agent orchestration for intelligent alerts
+- Context-aware alert generation
+- Natural language alert descriptions
 
 **Monorepo: pnpm**
 - Fast, efficient package management
@@ -62,8 +61,6 @@ SkyLaneAI v2 is a safety-critical system designed to protect flying taxis and ot
 - **Live Camera Feed**: Real-time WebRTC/WebSocket streaming from cameras
 - **Time-to-Contact (TTC)**: Collision risk calculation and prediction
 - **Graded Warning System**: Color-coded threat levels (Green, Yellow, Orange, Red)
-- **User Authentication**: Secure login via Supabase Auth
-- **Video History**: Database storage and retrieval of past analyses
 - **Dashboard Analytics**: Statistical visualizations and trends
 - **Multi-camera Support**: Simultaneous monitoring of multiple feeds
 
@@ -210,54 +207,24 @@ Currently, the application uses **file-based storage** without a persistent data
 - Stored temporarily during the analysis session
 - No long-term storage or history
 
-### Future Database Schema (Supabase - Planned)
+### Future Enhancements (Planned)
 
-When implementing persistent storage, the following schema will be used:
+When implementing persistent storage, consider:
 
-**videos**
-```sql
-CREATE TABLE videos (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  file_path TEXT NOT NULL,
-  duration FLOAT,
-  fps FLOAT,
-  resolution TEXT,
-  status TEXT CHECK (status IN ('uploading', 'processing', 'completed', 'failed')),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+**Video Storage**
+- Cloud storage integration (S3, Azure Blob, etc.)
+- Video metadata database
+- Historical analysis retrieval
 
-**detections**
-```sql
-CREATE TABLE detections (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
-  frame_number INT NOT NULL,
-  timestamp FLOAT NOT NULL,
-  class TEXT NOT NULL,
-  confidence FLOAT NOT NULL,
-  bbox_x FLOAT NOT NULL,
-  bbox_y FLOAT NOT NULL,
-  bbox_width FLOAT NOT NULL,
-  bbox_height FLOAT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+**Detection History**
+- Time-series database for detection patterns
+- Analytics on detection frequency and trends
+- Historical comparison and insights
 
-**alerts**
-```sql
-CREATE TABLE alerts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
-  severity TEXT CHECK (severity IN ('low', 'medium', 'high', 'critical')),
-  message TEXT NOT NULL,
-  context TEXT,
-  acknowledged BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+**Alert Management**
+- Alert history and acknowledgment tracking
+- Severity-based alert routing
+- Integration with notification systems
 
 ## Development Guidelines
 
@@ -318,45 +285,45 @@ async def upload_video(
 ### State Management
 
 **Frontend State**
-- React Context for global state (auth, theme)
+- React Context for global state (theme, preferences)
 - React Query for server state (videos, detections)
 - Local state for UI interactions
-- Supabase Realtime for live updates
+- WebSocket for real-time updates (in development)
 
 **Backend State**
 - Stateless API design
-- Database as source of truth
+- File-based temporary storage for current session
 - Redis for caching (optional, future)
-- WebSocket for real-time connections
+- WebSocket for real-time connections (in development)
 
 ### Testing Strategy
 
 **Frontend Tests**
 - Unit: Jest + React Testing Library
 - Integration: Playwright
-- E2E: Playwright with real Supabase instance
+- E2E: Playwright end-to-end testing
 
 **Backend Tests**
 - Unit: pytest with mocking
-- Integration: pytest with test database
+- Integration: pytest with test video files
 - Load: Locust for performance testing
 
 ### Security Considerations
 
-**Authentication**
-- Supabase Auth with JWT tokens
-- Refresh token rotation
-- MFA support (optional)
+**Authentication** (Planned)
+- JWT-based authentication
+- Secure token management
+- Session handling
 
-**Authorization**
-- Row Level Security (RLS) in Supabase
+**Authorization** (Planned)
 - API endpoint guards with dependencies
 - Role-based access control (RBAC)
+- Request rate limiting
 
 **Data Privacy**
-- Video encryption at rest (Supabase Storage)
+- Temporary file storage with automatic cleanup
 - HTTPS for all communications
-- GDPR compliance (data deletion)
+- Secure API key management (OpenAI API)
 
 **API Security**
 - Rate limiting (FastAPI middleware)
@@ -395,21 +362,17 @@ async def upload_video(
 - Edge functions for API routes
 
 **Backend (Options)**
-1. **Docker + Cloud Run**: Serverless containers
-2. **AWS EC2 + GPU**: Dedicated inference server
-3. **Kubernetes**: Scalable cluster deployment
-
-**Database (Supabase)**
-- Production instance with backups
-- Connection pooling (PgBouncer)
-- Read replicas for scaling
+1. **Render**: Simple deployment with free tier
+2. **Docker + Cloud Run**: Serverless containers
+3. **AWS EC2 + GPU**: Dedicated inference server
+4. **Kubernetes**: Scalable cluster deployment
 
 ## Monitoring & Observability
 
 **Application Monitoring**
 - Error tracking: Sentry
 - Performance: Vercel Analytics
-- Logs: Supabase Logs + CloudWatch
+- Logs: CloudWatch or application logs
 
 **Model Monitoring**
 - Inference latency tracking
@@ -483,21 +446,24 @@ async def upload_video(
 ## Troubleshooting
 
 **Video Upload Issues**
-- Check Supabase Storage bucket policies
-- Verify file size limits
-- Ensure correct MIME types
+- Verify temporary upload directory exists and has write permissions
+- Check file size limits (default: 100MB)
+- Ensure correct MIME types (mp4, avi, mov, mkv)
+- Check available disk space
 
 **Detection Accuracy Problems**
-- Verify model confidence threshold
+- Verify model confidence threshold (default: 0.25)
 - Check lighting conditions in video
-- Ensure model is loaded correctly
-- Review training data quality
+- Ensure YOLO model is loaded correctly
+- Review SKY_HAZARD_CLASSES configuration
+- Try different YOLO model variants
 
 **Performance Issues**
 - Profile with browser DevTools
-- Check database query performance
-- Monitor GPU utilization
+- Monitor GPU/CPU utilization
 - Review video resolution/bitrate
+- Check YOLO model size (nano vs large)
+- Verify OpenCV and video codec compatibility
 
 ## Current User Workflow
 

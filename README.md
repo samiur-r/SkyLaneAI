@@ -13,18 +13,17 @@ SkyLaneAI is an intelligent video analysis system designed to detect sky hazards
 - **shadcn/ui** - High-quality, accessible UI components
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
-- **Supabase Client** - Real-time data and authentication
 
 ### Backend
 - **FastAPI** - High-performance Python web framework
-- **YOLOv11** - State-of-the-art object detection model
+- **YOLO-World** - Open-vocabulary object detection (zero-shot)
 - **OpenCV** - Video processing and computer vision
-- **Supabase** - Database, authentication, and storage
+- **LangGraph** - AI agent framework for intelligent alerts
+- **OpenAI API** - Context-aware alert generation
 
 ### Infrastructure
 - **pnpm** - Fast, disk-efficient package manager
 - **Monorepo** - Unified workspace architecture
-- **Supabase** - Backend-as-a-Service platform
 
 ## Project Structure
 
@@ -47,9 +46,6 @@ SkyLaneAI/
 ├── packages/
 │   ├── types/                  # Shared TypeScript types
 │   └── config/                 # Shared configurations
-├── supabase/
-│   ├── migrations/             # Database migrations
-│   └── config.toml             # Supabase configuration
 ├── pnpm-workspace.yaml
 ├── package.json
 └── README.md
@@ -62,15 +58,14 @@ SkyLaneAI/
 - **Real-time Detection Display**: View detected hazards with bounding boxes and labels
 - **Alert Timeline**: Interactive timeline showing all detections throughout the video
 - **Detection Filtering**: Filter alerts by hazard type and severity level
+- **AI-Powered Alerts**: Intelligent, context-aware alert messages using LangGraph agents
 - **Responsive UI**: Modern, accessible interface built with shadcn/ui components
 - **Documentation**: Comprehensive docs page explaining the system and technology
 
 ### 🚧 In Development
-- **Live Camera Feed**: Real-time analysis of camera feeds
+- **Live Camera Feed**: Real-time analysis of camera feeds via WebRTC
 - **Time-to-Contact (TTC)**: Calculate collision risk and warning levels
 - **Graded Warnings**: Color-coded threat levels (Green, Yellow, Orange, Red)
-- **User Authentication**: Secure login and user management via Supabase
-- **Video History**: Store and review past analyses
 - **Dashboard Analytics**: Visualize detection statistics and patterns
 - **Multi-camera Support**: Monitor multiple feeds simultaneously
 
@@ -79,7 +74,7 @@ SkyLaneAI/
 - **Node.js** >= 20.x
 - **pnpm** >= 9.x
 - **Python** >= 3.11
-- **Supabase Account** (for backend services)
+- **OpenAI API Key** (for AI-powered alert generation)
 - **GPU** (recommended for YOLOv11 inference)
 
 ## Getting Started
@@ -105,34 +100,30 @@ pnpm install
 
 #### Frontend (.env.local in apps/web)
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 #### Backend (.env in apps/api)
 ```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_service_role_key
-MODEL_PATH=./models/yolov11.pt
-CONFIDENCE_THRESHOLD=0.5
+# OpenAI API for alert generation
+OPENAI_API_KEY=your_openai_api_key
+
+# Model configuration
+MODEL_NAME=yolo11l.pt
+MODELS_DIR=models
+MODEL_CACHE_ENABLED=true
+MODEL_DEVICE=cpu
+CONFIDENCE_THRESHOLD=0.25
 IOU_THRESHOLD=0.45
+
+# Sky hazard classes to detect
+SKY_HAZARD_CLASSES=["bird", "kite", "airplane", "sports ball"]
+
+# CORS configuration
+CORS_ORIGINS=["http://localhost:3000"]
 ```
 
-### 4. Supabase Setup
-
-```bash
-# Initialize Supabase (if not already done)
-npx supabase init
-
-# Link to your Supabase project
-npx supabase link --project-ref your-project-ref
-
-# Push database migrations
-npx supabase db push
-```
-
-### 5. Backend Setup (FastAPI)
+### 4. Backend Setup (FastAPI)
 
 ```bash
 cd apps/api
@@ -144,11 +135,10 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Download YOLOv11 model (if not included)
-python scripts/download_model.py
+# The YOLOv11 model will be downloaded automatically on first run
 ```
 
-### 6. Run Development Servers
+### 5. Run Development Servers
 
 #### Terminal 1: Frontend
 ```bash
@@ -176,44 +166,34 @@ The application will be available at:
 ## API Endpoints
 
 ### Video Processing
-- `POST /api/v1/upload` - Upload video for analysis
-- `POST /api/v1/analyze/stream` - Start live stream analysis
-- `GET /api/v1/detections/{video_id}` - Get detection results
+- `POST /upload` - Upload video file for analysis
+- `POST /analyze` - Analyze uploaded video and return detections
 
-### Hazard Detection
-- `POST /api/v1/detect` - Real-time frame detection
-- `GET /api/v1/hazards/types` - List supported hazard types
-- `POST /api/v1/ttc/calculate` - Calculate Time-to-Contact
+### Alert Generation
+- `POST /alerts/generate` - Generate AI-powered context-aware alerts
+- `GET /alerts/{alert_id}` - Retrieve specific alert details
 
-### User Management
-- `POST /api/v1/auth/register` - User registration
-- `POST /api/v1/auth/login` - User login
-- `GET /api/v1/user/history` - Get user's analysis history
-
-## Database Schema
-
-### Key Tables
-- `users` - User accounts and profiles
-- `videos` - Uploaded and processed videos
-- `detections` - Detected hazards with metadata
-- `camera_feeds` - Live camera feed configurations
-- `alerts` - TTC-based warning alerts
+### WebRTC Streaming (In Development)
+- `POST /stream/offer` - Initiate WebRTC connection for live feed
 
 ## YOLOv11 Integration
 
-The system uses YOLOv11 for object detection with custom training on sky hazards:
+The system uses YOLOv11 for object detection, leveraging the COCO dataset classes:
 
-### Supported Hazard Classes
-1. Bird (small, medium, large flocks)
-2. Drone (consumer, commercial)
-3. Balloon (party, weather)
-4. Kite (recreational, sport)
+### Detected Sky Hazard Classes
+The system filters YOLO detections to focus on sky hazards:
+- **bird** - Birds of various sizes and flocks
+- **kite** - Kites and similar flying objects
+- **airplane** - Aircraft and potentially drones
+- **sports ball** - May detect balloons
 
-### Model Training
-```bash
-cd apps/api
-python scripts/train_model.py --data config/hazards.yaml --epochs 100
-```
+### Model Configuration
+The default model is `yolo11l.pt` (large variant) for accuracy. You can switch to other variants in `.env`:
+- `yolo11n.pt` - Nano (fastest, smallest)
+- `yolo11s.pt` - Small
+- `yolo11m.pt` - Medium
+- `yolo11l.pt` - Large (default, good balance)
+- `yolo11x.pt` - Extra Large (most accurate, slowest)
 
 ## Time-to-Contact (TTC) Algorithm
 
@@ -240,8 +220,6 @@ Warning levels:
 5. Add environment variables:
    ```
    NEXT_PUBLIC_API_URL=https://your-api.onrender.com
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 6. Deploy!
 
@@ -282,9 +260,6 @@ vercel --prod
 - First request after spin-down takes 30-60s
 - YOLO model downloads on first request (~30s)
 - See [apps/api/DEPLOYMENT.md](apps/api/DEPLOYMENT.md) for detailed guide
-
-### Supabase
-Production database and authentication are managed through [Supabase dashboard](https://supabase.com/dashboard).
 
 ## Development
 
@@ -327,7 +302,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - YOLOv11 by Ultralytics
 - Next.js team for the excellent framework
 - shadcn for beautiful UI components
-- Supabase for the backend infrastructure
+- OpenAI for GPT models powering intelligent alerts
+- LangGraph for AI agent orchestration
 
 ## Support
 
