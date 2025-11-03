@@ -46,11 +46,11 @@ export default function DocsPage() {
                 <Eye className="w-6 h-6 text-primary" />
                 <CardTitle>Real-time Detection</CardTitle>
               </div>
-              <CardDescription>DETR-powered AI technology</CardDescription>
+              <CardDescription>YOLO-powered AI technology</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Advanced object detection using the latest DETR model, capable of identifying
+                Advanced object detection using the latest YOLO model, capable of identifying
                 birds, drones, balloons, and kites with high accuracy and minimal latency.
               </p>
             </CardContent>
@@ -122,7 +122,7 @@ export default function DocsPage() {
               <div>
                 <h3 className="text-xl font-semibold mb-2">2. Object Detection</h3>
                 <p className="text-muted-foreground">
-                  Each video frame is analyzed using our custom-trained DETR model to identify potential hazards
+                  Each video frame is analyzed using YOLO model to identify potential hazards
                   including birds, drones, balloons, and kites.
                 </p>
               </div>
@@ -224,7 +224,7 @@ export default function DocsPage() {
                 <h3 className="text-lg font-semibold mb-2">Backend</h3>
                 <ul className="space-y-1 text-muted-foreground">
                   <li>• FastAPI (Python)</li>
-                  <li>• DETR object detection</li>
+                  <li>• YOLO object detection</li>
                   <li>• OpenCV for video processing</li>
                   <li>• WebSocket for real-time data</li>
                 </ul>
@@ -232,7 +232,7 @@ export default function DocsPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-2">AI/ML</h3>
                 <ul className="space-y-1 text-muted-foreground">
-                  <li>• DETR (Ultralytics)</li>
+                  <li>• YOLO (Ultralytics)</li>
                   <li>• Custom-trained model</li>
                   <li>• GPU-accelerated inference</li>
                   <li>• Real-time TTC algorithms</li>

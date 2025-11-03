@@ -20,7 +20,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Play, Pause, Trash2, Upload as UploadIcon } from 'lucide-react';
+import { Play, Square, Trash2, Upload as UploadIcon } from 'lucide-react';
 import type { VideoUploadMetadata, StreamSettings, WSTimeBasedAlertMessage } from '@repo/types';
 
 export default function VideoPage() {
@@ -29,6 +29,7 @@ export default function VideoPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingCompleted, setProcessingCompleted] = useState(false);
   const [isPlayingMjpeg, setIsPlayingMjpeg] = useState(false);
+  const [hasVideoEnded, setHasVideoEnded] = useState(false);
   const [mjpegKey, setMjpegKey] = useState(0); // Force reload MJPEG stream
   const [streamSettings, setStreamSettings] = useState<StreamSettings>({
     fps: 10,
@@ -143,21 +144,32 @@ export default function VideoPage() {
    */
   const handlePlayMjpeg = () => {
     setIsPlayingMjpeg(true);
+    setHasVideoEnded(false);
     setMjpegKey(prev => prev + 1); // Force reload MJPEG stream
   };
 
   /**
-   * Handle MJPEG pause
-   */
-  const handlePauseMjpeg = () => {
-    setIsPlayingMjpeg(false);
-  };
-
-  /**
-   * Handle MJPEG stop (reset to beginning)
+   * Handle MJPEG stop
    */
   const handleStopMjpeg = () => {
     setIsPlayingMjpeg(false);
+    setHasVideoEnded(true);
+  };
+
+  /**
+   * Handle MJPEG ended
+   */
+  const handleMjpegEnded = () => {
+    setIsPlayingMjpeg(false);
+    setHasVideoEnded(true);
+  };
+
+  /**
+   * Handle MJPEG replay
+   */
+  const handleReplayMjpeg = () => {
+    setIsPlayingMjpeg(true);
+    setHasVideoEnded(false);
     setMjpegKey(prev => prev + 1); // Reload stream from beginning
   };
 
@@ -183,6 +195,7 @@ export default function VideoPage() {
       setIsProcessing(false);
       setProcessingCompleted(false);
       setIsPlayingMjpeg(false);
+      setHasVideoEnded(false);
     }
   };
 
@@ -223,7 +236,7 @@ export default function VideoPage() {
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold">Video Detection</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Upload and analyze videos with DETR object detection
+            Upload and analyze videos with YOLO object detection
           </p>
         </div>
       </header>
@@ -269,17 +282,20 @@ export default function VideoPage() {
                 <div className="relative aspect-video bg-black">
                   {processingCompleted && isPlayingMjpeg ? (
                     <MjpegPlayer
-                      key={mjpegKey}
                       videoId={videoMetadata.videoId}
+                      streamKey={mjpegKey}
                       className="w-full h-full"
                       onError={(error) => {
                         console.error('MJPEG stream error:', error);
                       }}
+                      onEnded={handleMjpegEnded}
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                       {isProcessing ? (
                         <p>Processing video... Please wait</p>
+                      ) : processingCompleted && hasVideoEnded ? (
+                        <p>Video finished! Click Replay to watch again</p>
                       ) : processingCompleted ? (
                         <p>Processing complete! Click Play to watch annotated video</p>
                       ) : (
@@ -385,14 +401,14 @@ export default function VideoPage() {
                     {processingCompleted && (
                       <div className="flex gap-2">
                         {!isPlayingMjpeg ? (
-                          <Button onClick={handlePlayMjpeg} className="flex-1">
+                          <Button onClick={hasVideoEnded ? handleReplayMjpeg : handlePlayMjpeg} className="flex-1">
                             <Play className="w-4 h-4 mr-2" />
-                            Play
+                            {hasVideoEnded ? 'Replay' : 'Play'}
                           </Button>
                         ) : (
-                          <Button onClick={handlePauseMjpeg} className="flex-1">
-                            <Pause className="w-4 h-4 mr-2" />
-                            Pause
+                          <Button onClick={handleStopMjpeg} variant="secondary" className="flex-1">
+                            <Square className="w-4 h-4 mr-2" />
+                            Stop
                           </Button>
                         )}
                       </div>

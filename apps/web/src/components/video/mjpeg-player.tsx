@@ -17,6 +17,8 @@ export interface MjpegPlayerProps {
   className?: string;
   onError?: (error: Error) => void;
   onLoad?: () => void;
+  onEnded?: () => void;
+  streamKey?: number;
 }
 
 export function MjpegPlayer({
@@ -24,22 +26,35 @@ export function MjpegPlayer({
   className = '',
   onError,
   onLoad,
+  onEnded,
+  streamKey = 0,
 }: MjpegPlayerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const imgRef = useRef<HTMLImageElement>(null);
+  const hasStreamEndedRef = useRef(false);
 
-  const streamUrl = `${API_URL}/api/v1/video/${videoId}/mjpeg`;
+  // Use streamKey from parent, combined with retry count for error retries
+  const urlKey = streamKey * 1000 + retryCount;
+  const streamUrl = `${API_URL}/api/v1/video/${videoId}/mjpeg?t=${urlKey}`;
 
   const handleLoad = () => {
     setIsLoading(false);
     setError(null);
-    setRetryCount(0);
+    hasStreamEndedRef.current = false;
     onLoad?.();
   };
 
   const handleError = () => {
+    // MJPEG streams end by closing the connection, which triggers an error
+    // If we've already loaded successfully, this is likely the stream ending
+    if (!isLoading && !error) {
+      hasStreamEndedRef.current = true;
+      onEnded?.();
+      return;
+    }
+
     const err = new Error('Failed to load MJPEG stream. Make sure processing has started.');
     setError(err);
     setIsLoading(false);
@@ -52,12 +67,13 @@ export function MjpegPlayer({
     setRetryCount((prev) => prev + 1);
   };
 
+  // Reset state when streamKey changes (for replay)
   useEffect(() => {
-    // Reset state when videoId changes
     setIsLoading(true);
     setError(null);
     setRetryCount(0);
-  }, [videoId]);
+    hasStreamEndedRef.current = false;
+  }, [streamKey]);
 
   if (error) {
     return (
@@ -67,7 +83,7 @@ export function MjpegPlayer({
           <AlertDescription>{error.message}</AlertDescription>
         </Alert>
         <Button onClick={retry} variant="outline" className="mt-4 w-full">
-          Retry ({retryCount} attempts)
+          Retry
         </Button>
       </div>
     );
@@ -85,7 +101,7 @@ export function MjpegPlayer({
       )}
       <img
         ref={imgRef}
-        src={`${streamUrl}?t=${retryCount}`}
+        src={streamUrl}
         alt="MJPEG Video Stream with Detections"
         className="w-full h-auto bg-black"
         onLoad={handleLoad}
